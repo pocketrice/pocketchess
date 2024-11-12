@@ -1,5 +1,5 @@
 # pocketchess
-3D isometric pixelated chess game with more mechanics than needed. Roguelike? ✔ Adventure? ✔ Party game? ✔ Deduction? ✔ etc.
+3D isometric pixelated chess game with more mechanics than needed. Think of it as a loving mash of ***Monopoly, Warioware, Jeopardy, Chess, Layton, TF2, SA2, Mother 3, and Balatro.***
 
 Originally built in MATLAB, now in a custom OpenGL engine!
 
