@@ -50,6 +50,9 @@ effPaneWarn = 93;
 % [ 1, 2 ]
 effPaneNum = [ 63, 64 ];
 
+cbA = [ 21, 22, 21, 22, 21, 22, 21, 22 ];
+cbB = [ 22, 21, 22, 21, 22, 21, 22, 21 ];
+
 % ===================== MISC ========================
 % Starts from top and goes clockwise
 dirArrows = [ 9, 8, 7, 18, 17, 20, 19, 10 ];
@@ -77,7 +80,7 @@ na_row = nspace(na, 18);
 % Keyboard controls.
 kbrel = [4,4];
 kbframe = 0;
-kfcurr = [];
+kfcurr = [0,0];
 
 % Chessboard
 cb = ChessBoard();
@@ -127,10 +130,15 @@ while 1
     key = getKeyboardInput(game_scene);
 dir = Direction.NA;
 switch key
+    case 'escape'
+        if kbframe
+            game_scene.sound(sfx_sdown);
+            kbframe = 0;
+        end
     case 'return'
         game_scene.sound(sfx_done);
     case 'space'
-        if (~isempty(kfcurr) && ~has(kfvmoves, kfcurr))
+        if (kbframe && ~has(kfvmoves, kbrel)) || (~kbframe && cb.iserel(applykb(kbrel, dir)))
             game_scene.sound(sfx_err);
         else
             kbframe = ~kbframe;

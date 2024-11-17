@@ -400,7 +400,7 @@ classdef ChessBoard < handle
                         % Move forward 1 space (## target is empty)
                         move_fw1 = rel2abs(pos, [1,0], player);
                         
-                        if (valabs(move_fw1) && iseabs(move_fw1))
+                        if (valabs(move_fw1) && obj.iserel(move_fw1))
                             vq.enq(move_fw1);
                         end
 
