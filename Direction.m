@@ -12,6 +12,7 @@ classdef Direction
         LeftDown([-1,-1])
         RightUp([1,1])
         RightDown([-1,1])
+        NA([0,0])
     end
 
     methods
