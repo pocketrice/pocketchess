@@ -15,6 +15,8 @@ classdef ChessBoard < handle
 
     methods
         function obj = ChessBoard()
+            global WhitePawn WhiteRook WhiteKnight WhiteBishop WhiteQueen WhiteKing BlackPawn BlackRook BlackKnight BlackBishop BlackQueen BlackKing;
+            
             % This is defining the chess pieces we'll need to first set up
             % the board. You can see how to create a ChessPiece (just pass
             % it a PieceType and 1 for white or 2 for black).
@@ -62,6 +64,17 @@ classdef ChessBoard < handle
                 WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn;
                 WhiteRook, WhiteKnight, WhiteBishop, WhiteKing, WhiteQueen, WhiteBishop, WhiteKnight, WhiteRook };
         end
+
+        % "Position of piece"
+        % Gets the positions of the given piece.
+        % There might be more than 1 of that piece (such as white rook) so
+        % it will usually be an array.
+        %
+        % cb.getpos(WhiteRook)
+        %           
+        function pos = getpos(obj, piece)
+            pos = obj.pquery(piece.Type, piece.Player);
+        end
         
         %
         % "Query pieces"
@@ -74,13 +87,10 @@ classdef ChessBoard < handle
         % cb.query() 
         %           = {{ChessPiece, [3,4]}, {ChessPiece, [2,4]}, {ChessPiece, [1,3]}...}
         %
-
         function pieces = query(obj)
-            indices = find(cellfun(@(p) ~iseabs(p), obj.Board))';
-            
-            % [piece, location]; transposed because it outputs in row-form
-            % for some reason lul
-            pieces = arrayfun(@(ind) {obj.Board(ind), ind}, indices, 'UniformOutput', false);
+            indices = find(cellfun(@(p) ~iseabs(p), obj.Board));
+
+            pieces = arrayfun(@(ind) {obj.get(unflat(ind, 8)), unflat(ind, 8)}, indices, 'UniformOutput', false);
 
             % lame readable approach :c
             % pieces = cell(length(indices));
@@ -89,6 +99,102 @@ classdef ChessBoard < handle
             %     pieces(i) = {obj.Board(indices(i), indices(i))};
             % end
         end
+
+        % "Antiquery"
+        %
+        % Gets all empty spaces.
+        %
+        function pieces = aquery(obj)
+            indices = find(cellfun(@(p) iseabs(p), obj.Board));
+
+            pieces = arrayfun(@(ind) {obj.get(unflat(ind, 8)), unflat(ind, 8)}, indices, 'UniformOutput', false);
+        end
+
+        % "Enigma query"
+        % 
+        % Gets all enigma pieces.
+        function pieces = equery(obj)
+            indices = find(cellfun(@(p) ~iseabs(p) && ~isempty(p.Enigmas), obj.Board));
+
+            pieces = arrayfun(@(ind) {obj.get(unflat(ind, 8)), unflat(ind, 8)}, indices, 'UniformOutput', false);
+        end
+
+        % "Piece query"
+        %
+        % Gets pieces of player {[piece, pos]...}
+        % You can either pass in 1 parameter (ChessPiece)
+        %                     or 2 parameters (type, player)
+        %
+        function pieces = pquery(obj, varargin)
+            if nargin == 3
+                jp = ChessPiece(varargin{1}, varargin{2});
+            else
+                jp = varargin{1};
+            end
+
+            pieces = {};
+
+            for i = 1:8
+                for j = 1:8
+                    cp = obj.get([i,j]);
+
+                    if (~iseabs(cp) && cp == jp)
+                        pieces{end + 1} = {cp, [i,j]};
+                    end
+                end
+            end
+        end
+
+        % "King query"
+        % Queries both kings, only position. 0 if non-existent; [white, black]
+        function kings = kquery(obj)
+            whitepq = obj.pquery(PieceType.King, 1);
+            blackpq = obj.pquery(PieceType.King, 2);
+
+            if isempty(whitepq)
+                kings{1} = 0;
+            else
+                wk = whitepq{1};
+                kings{1} = wk{2};
+            end
+
+            if isempty(blackpq)
+                kings{2} = 0;
+            else
+                bk = blackpq{1};
+                kings{2} = bk{2};
+            end
+        end
+
+        % "Query's valid pieces"
+        % Gets indices of query array that have any valid moves.
+        % ...this doesn't mean they will be good moves.
+        function inds = qvp(obj, query)
+            % Extract position vector 
+            qpos = exti(query, 2);
+
+            % Get indices
+            % inds = find(~isempty(obj.vmoves(qpos)));
+            inds = [];
+
+            for i = 1:length(qpos)
+                if ~isempty(obj.vmoves(qpos{i}))
+                    inds(end + 1) = i;
+                end
+            end       
+        end
+
+
+        % "Add enigma"
+        % Pieces are not handles and thus we need to manually overwrite on
+        % the board.
+        %
+        function eniga(obj, pos, enig)
+            piece = obj.get(pos);
+            piece.Enigmas = [ piece.Enigmas, enig ];
+            obj.pow(pos, piece);
+        end
+
 
         % "Correspondence"
         % Creates the abstract correspondence (sprite index array) for the concrete
@@ -152,6 +258,9 @@ classdef ChessBoard < handle
         %
 
         function result = isuno(obj, oldPos, newPos)
+            oldPos = unflat(oldPos, 8);
+            newPos = unflat(newPos, 8);
+
             indices = indmat(oldPos, newPos);
 
             % Remove piece itself
@@ -172,17 +281,15 @@ classdef ChessBoard < handle
         %           = ChessPiece
 
         function item = get(obj, pos)
-            if (isscalar(pos))
-                item = obj.Board{pos};
-            else
-                item = obj.Board{pos(1), pos(2)};
-            end
+            pos = unflat(pos, 8);
+
+            item = obj.Board{pos(1), pos(2)};
         end 
 
         %
         % "Is empty relative"
         % This function tells you if the board position is empty or not.
-        %
+        % 
         % Similar to iseabs(piece), which tells you if the extracted
         % "piece" is 0 or actually a piece.
         %
@@ -191,7 +298,7 @@ classdef ChessBoard < handle
         %
 
         function result = iserel(obj, pos)
-            piece = obj.get(pos);
+            piece = obj.get(unflat(pos, 8));
 
             result = (isa(piece, "double"));
         end
@@ -208,7 +315,7 @@ classdef ChessBoard < handle
         %
 
         function result = isoppo(obj, pos, player)
-            piece = obj.get(pos);
+            piece = obj.get(unflat(pos, 8));
             
             result = (~iseabs(piece) && piece.Player ~= player);
         end
@@ -217,7 +324,8 @@ classdef ChessBoard < handle
         % This function gives you an array of spaces from your starting
         % position until it either reaches edge of the board or a piece in
         % the way. It doesn't take into account what kind of piece it is,
-        % just that it can move in that direction.
+        % just that it can move in that direction (same output whether pawn or
+        % bishop, for example).
         % 
         % The dir parameter is in the form Direction.[something], so
         % Direction.Left, Direction.Right, etc. This is which way you are
@@ -272,8 +380,14 @@ classdef ChessBoard < handle
         %                                      1.
         % 
         function indices = iuntilmax(obj, pos, dir, max, oppoAware)
-            % Get offset from direction
+            % Unflat pos
+            pos = unflat(pos, 8);
+
+            % Get offset from direction, and relative fix based on player
             offset = dir.Offset;
+            if (obj.get(pos).Player == 1)
+                offset = -offset;
+            end
 
             % Last valid position until obstruction/off-board
             lastValidPos = pos;
@@ -293,7 +407,7 @@ classdef ChessBoard < handle
                 
                 % Apply (confirmed) offset; if oppo aware and is opposing player then add and
                 % stop.
-                if (isFinding || (valabs(nextPos) && oppoAware && obj.isoppo(nextPos, oppoAware)))
+                if (isFinding || (numSpaces + 1 <= max && valabs(nextPos) && oppoAware && obj.isoppo(nextPos, oppoAware)))
                     lastValidPos = nextPos;
                     numSpaces = numSpaces + 1;
                 end
@@ -309,7 +423,84 @@ classdef ChessBoard < handle
             indices = indices(2:length(indices));
         end
 
+        % "Get consuming moves for player"
+        % Gets all consuming moves for particular player.
+        % Stored as pair of coords (old and new) since this targets all
+        % rather than just 1 piece.
+        function movepairs = cpmoves(obj, player)
+            types = [ PieceType.Pawn, PieceType.Knight, PieceType.King, PieceType.Bishop, PieceType.Queen, PieceType.Rook ];
+            movepairs = {};
 
+            % For every piece type...
+            for type = types
+                % Get all positions for pieces of that type...
+               typepos = exti(obj.pquery(type, player), 2);
+               
+               % For every position get every cmoves...
+               for tpcell = typepos
+                   tp = tpcell{1};
+                   cmoves = obj.cmoves(tp);
+
+                   % For every cmoves, add to movepairs.
+                   if ~isempty(cmoves)
+                       for ccell = cmoves   
+                           c = ccell{1};
+                           movepairs{end+1} = {tp, c};
+                       end
+                   end
+               end
+            end
+        end
+               
+               
+        % "Get consuming moves for piece"
+        % Gets indices of vmoves that are moves that consume a piece.
+        % Handy for check checking or ChessBot move priority.
+        function moves = cmoves(obj, pos)
+            moves = {};
+
+            % Check if not empty.
+            if ~iseabs(obj.get(pos))
+                player = obj.get(pos).Player;
+                allmoves = horzcat(obj.vmoves(pos), obj.evmoves(pos));
+
+                for i = 1:length(allmoves)
+                    move = allmoves{i};
+
+                    if obj.isoppo(move, player)
+                        moves{end + 1} = move;
+                    end
+                end
+            end
+        end
+
+        % "Get valid moves for player"
+        % Gets all valid moves for a player in a cell array in {{oldpos,
+        % newpos}...} format.
+        function movepairs = vpmoves(obj, player)
+            types = [ PieceType.Pawn, PieceType.Knight, PieceType.Bishop, PieceType.Rook, PieceType.Queen, PieceType.King ];
+            movepairs = {};
+
+            % For every piece type...
+            for type = types
+                % Get all positions for pieces of that type...
+               typepos = exti(obj.pquery(type, player), 2);
+               
+               % For every position get every vmoves...
+               for tpcell = typepos
+                   tp = tpcell{1};
+                   vmoves = obj.vmoves(tp);
+
+                   % For every cmoves, add to movepairs.
+                   if ~isempty(vmoves)
+                       for vcell = vmoves 
+                           v = vcell{1};
+                            movepairs{end+1} = {tp, v};
+                       end
+                   end
+               end
+            end
+        end
 
         %
         % "Get valid moves for piece"
@@ -354,7 +545,7 @@ classdef ChessBoard < handle
         
         function moves = vmoves(obj, pos)
             % Get chess piece object
-            piece = obj.get(pos);
+            piece = obj.get(unflat(pos, 8));
 
             % This is a queue, which stores items dynamically. A regular
             % array can't change size so this makes things faster. All you
@@ -412,8 +603,8 @@ classdef ChessBoard < handle
                         end
 
                         % Diagonal 1 space (## target occupied by opponent)
-                        move_diag_l = rel2abs(pos, [1,-1], player);
-                        move_diag_r = rel2abs(pos, [1,1], player);
+                        move_diag_l = rel2abs(pos, [1,1], player);
+                        move_diag_r = rel2abs(pos, [1,-1], player);
 
                         if (valabs(move_diag_l) && obj.isoppo(move_diag_l, player))
                             vq.enq(move_diag_l);
@@ -488,6 +679,80 @@ classdef ChessBoard < handle
              % Convert queue to vector.
              moves = vq.vec();
         end
+
+        % "Enigma valid moves"
+        % Separated for ease of coloring.
+        function moves = evmoves(obj, pos)
+            piece = obj.get(pos);
+            player = piece.Player;
+
+            if ~iseabs(piece)
+                enigmas = vdecomp(piece.Enigmas);
+                vq = Queue([0,0]);
+
+                for i = 1:length(enigmas)
+                    e = enigmas{i};
+                    etype = e{1};
+                    ecount = e{2};
+
+                    % Note: you can be guaranteed at least 1 of the type
+                    % exists, hence a few assumptions below (see Sidewind)
+                    switch etype
+                        case EnigmaType.Backtrot % ## unoccupied [-1]
+                            move_bt = rel2abs(pos, [-1,0], player);
+
+                            if valabs(move_bt) && obj.iserel(move_bt)
+                                vq.enq(move_bt);
+                            end
+                        case EnigmaType.Sidewind % ## unoccupied [2]
+                            % All possible moves
+                            potens = {[0,-1], [0,1]};
+
+                            % Get corresponding amount of moves based on
+                            % ecount
+                            potens = potens(1:ecount);
+
+                            for p = potens
+                                move = rel2abs(pos, p{1}, player);
+
+                                if valabs(move) && obj.iserel(move)
+                                    vq.enq(move);
+                                end
+                            end
+                        case EnigmaType.Protractor % ## unoccupied or opponent [4]
+                            potens = {[2,-2], [-2,2], [2,2], [-2,-2]};
+                            potens = potens(1:ecount);
+
+                            for p = potens
+                                move = rel2abs(pos, p{1}, player);
+
+                                if valabs(move) && (obj.iserel(move) || obj.isoppo(move, player))
+                                    vq.enq(move);
+                                end
+                            end
+                        case EnigmaType.Missile % ## has opponent in n radius [3]
+                            radius = ecount; % 1x1, 2x2, 3x3
+                            rspaces = frring(radius, pos);
+
+                            for rscell = rspaces
+                                rs = rscell{1};
+                                
+                                if obj.isoppo(rs, player)
+                                    vq.enq(rs);
+                                end
+                            end
+                        case EnigmaType.Panick % ## is checked, unoccupied or opponent [3]
+                        case EnigmaType.Magnesis % ## nothing to do [3]
+                        case EnigmaType.Chakra % ## nothing to do [1]
+                    end
+                end
+
+                moves = vq.vec();
+            else
+                moves = [];
+            end
+        end
+
 
         % "Move piece"
         % Moves the piece at old position to new position.

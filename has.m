@@ -1,13 +1,29 @@
+% Result if nonzero is first index of item.
 function result = has(vec, item)
-if (isa(vec, 'cell'))
-    vec = cell2mat(vec);
-end
+  % Due to how arrays work if item is [] then it will be nonzero; hence
+  % shortcircuit if so.
+  if ~isempty(item)
+    isc = iscell(vec);
+    result = 0;
+    vind = 1;
 
-  result = 0;
-  vind = 1;
+    while ~result && vind <= length(vec)
+        if (isc)
+            vitem = vec{vind};
+        else
+            vitem = vec(vind);
+        end
 
-  while ~result && vind <= length(vec)
-    result = all(vec(vind) == item);
-    vind = vind + 1;
+        % Rather than using lens equal && all(vitem == item) (naive), since
+        % cells can't be checked using == other than a manual loop this is
+        % best approach.
+        if isequal(vitem, item)
+            result = vind;
+        else 
+            vind = vind + 1;
+        end
+    end
+  else
+    result = 0;
   end
 end

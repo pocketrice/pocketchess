@@ -16,5 +16,5 @@
 %               = 0       <-- see above.
 %
         function result = iseabs(piece)
-            result = (isa(piece, "double"));
+            result = isa(piece, "double") && isscalar(piece);
         end

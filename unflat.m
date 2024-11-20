@@ -1,11 +1,16 @@
 function unf = unflat(f, ylen)
-rows = 1;
-cols = f;
+    if isscalar(f) 
+        cols = 1;
+        rows = f;
 
-    while cols > ylen
-        cols = cols - ylen;
-        rows = rows + 1;
+        while rows > ylen
+            rows = rows - ylen;
+            cols = cols + 1;
+        end
+
+        unf = [rows, cols];
+    else
+        unf = f;
     end
-
-    unf = [rows, cols];
+    
 end

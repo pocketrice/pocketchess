@@ -26,7 +26,6 @@
 % betterGameEngine simply makes the SGE a little better.
 % * n-layers for sprites
 % * SFX support
-% * Sprite index map + (conditional) correspondence
 %
 % #####################
 
@@ -109,7 +108,7 @@ classdef betterGameEngine < handle
         end
 
         function sound(obj, ind)
-            play(obj.sfxs{ind});
+            %play(obj.sfxs{ind});
         end
             
 

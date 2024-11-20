@@ -42,7 +42,7 @@
             end
 
             % Flatten indices
-            indices = sub2ind([8,8], ind2d(2,:), ind2d(1,:));
+            indices = sub2ind([8,8], ind2d(1,:), ind2d(2,:));
 
             % Unflatten into cells
             indices = arrayfun(@(i) unflat(i,8), indices, 'UniformOutput', false);
