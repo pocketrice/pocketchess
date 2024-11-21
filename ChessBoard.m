@@ -55,7 +55,10 @@ classdef ChessBoard < handle
             % You can access this matrix directly using something like
             % "board = cb.Board"
 
-             obj.Board = { BlackRook, BlackKnight, BlackBishop, BlackQueen, BlackKing, BlackBishop, BlackKnight, BlackRook;
+            
+
+             % REGULAR PRESET
+              obj.Board = { BlackRook, BlackKnight, BlackBishop, BlackQueen, BlackKing, BlackBishop, BlackKnight, BlackRook;
                  BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn;
                  0, 0, 0, 0, 0, 0, 0, 0;
                  0, 0, 0, 0, 0, 0, 0, 0;
@@ -64,14 +67,25 @@ classdef ChessBoard < handle
                  WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn;
                  WhiteRook, WhiteKnight, WhiteBishop, WhiteKing, WhiteQueen, WhiteBishop, WhiteKnight, WhiteRook };
 
-             % obj.Board = { BlackRook, BlackKnight, BlackBishop, 0, BlackKing, BlackBishop, BlackKnight, BlackRook;
-             %    BlackQueen, BlackQueen, BlackQueen, 0, BlackQueen, BlackQueen, BlackQueen, BlackQueen;
-             %    0, 0, 0, 0, 0, 0, 0, 0;
-             %    0, 0, 0, 0, 0, 0, 0, 0;
-             %    0, 0, 0, 0, 0, 0, 0, 0;
-             %    0, 0, 0, 0, 0, 0, 0, 0;
-             %    0, 0, 0, 0, 0, 0, 0, 0;
-             %    WhiteRook, WhiteKnight, WhiteBishop, WhiteKing, WhiteQueen, WhiteBishop, WhiteKnight, WhiteRook };
+             % CHAOS PRESET
+              % obj.Board = { BlackRook, BlackKnight, BlackBishop, BlackRook, BlackKing, BlackBishop, BlackKnight, BlackRook;
+              %    BlackQueen, BlackQueen, BlackQueen, BlackQueen, BlackQueen, BlackQueen, BlackQueen, BlackQueen;
+              %    0, 0, 0, 0, 0, 0, 0, 0;
+              %    0, 0, 0, 0, 0, 0, 0, 0;
+              %    0, 0, 0, 0, 0, 0, 0, 0;
+              %    0, 0, 0, 0, 0, 0, 0, 0;
+              %    WhiteQueen, WhiteQueen, WhiteQueen, WhiteQueen, WhiteQueen, WhiteQueen, WhiteQueen, WhiteQueen;
+              %    WhiteRook, WhiteKnight, WhiteBishop, WhiteKing, WhiteRook, WhiteBishop, WhiteKnight, WhiteRook };
+
+               % DUEL PRESET
+               % obj.Board = { BlackRook, BlackKnight, BlackBishop, 0, BlackKing, BlackBishop, BlackKnight, BlackRook;
+               %    BlackKnight, 0, 0, BlackQueen, BlackQueen, 0, 0, BlackKnight;
+               %    0, 0, 0, 0, 0, 0, 0, 0;
+               %    BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn;
+               %    WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn;
+               %    0, 0, 0, 0, 0, 0, 0, 0;
+               %    WhiteKnight, 0, 0, WhiteQueen, WhiteQueen, 0, 0, WhiteKnight;
+               %    WhiteRook, WhiteKnight, WhiteBishop, WhiteKing, 0, WhiteBishop, WhiteKnight, WhiteRook };
         end
 
         % "Position of piece"
@@ -559,6 +573,45 @@ classdef ChessBoard < handle
             end
         end
 
+        % "Filter resolving moves for piece"
+        % Get subset of moves from a given set of moves from a static position (such as vmoves)
+        % that are resolving (or don't put the player in check).
+        function submoves = frmoves(obj, pos, moves)
+            % Get the player!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            player = obj.get(pos).Player;
+
+            % Loop through all the moves.
+            submoves = moves;
+
+            for i = length(submoves):-1:1
+                % Remove if not resolving (puts in check).
+                if ~obj.checkresmove(pos, submoves{i}, player)
+                    submoves(i) = [];
+                end
+            end
+        end
+
+        % "Filter resolving moves for player"
+        % Get subset of moves from a given set of  (use player moves
+        % functions such as vpmoves or cpmoves)
+        % that are resolving (see frmoves for details)
+        function submovepairs = frpmoves(obj, movepairs, player)
+            % Loop through all the movepairs.
+            submovepairs = movepairs;
+
+            for i = length(submovepairs):-1:1
+                % Get the start and end of movepair
+                submovepair = submovepairs{i};
+                submstart = submovepair{1};
+                submend = submovepair{2};
+
+                % Remove if not resolving (puts in check)
+                if ~obj.checkresmove(submstart, submend, player)
+                    submovepairs(i) = [];
+                end
+            end
+        end
+
         % "Get resolving moves for piece"
         % Integrates checkresmove to ensure the moves passed in resolve check.
         % You should only pass either vmoves and/or emoves into this!
@@ -1028,7 +1081,7 @@ classdef ChessBoard < handle
             result = false;
 
             % Not in checkmate if not in check!
-            if ~obj.checkcheck(player)
+            if obj.checkcheck(player)
                 % Get all valid moves for the player
                 vmoves = obj.vpmoves(player);
 

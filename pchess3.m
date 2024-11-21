@@ -97,6 +97,7 @@ kbframe = 0;
 enigframe = 1;
 pturn = 0;
 pturnmoves = 1;
+eturn = 0;
 ischeckmate = 0;
 
 % Magnesis tracker and position of magnetised piece (rook)
@@ -119,8 +120,8 @@ enigcount = 0;
 
 
 % Fill each row of layer 1.
-row1 = [ stdStatusIcon, na, stdPaneTop, na, na, na, cardHUD, cardNum(1), na, enigmaHUD(1), enigmaHUD(1), enigmaHUD(1) ];
-row2 = [ na, na, stdPaneBtm, nspace(na, 9) ];
+row1 = [ nspace(na, 15), enigmaHUD(1), enigmaHUD(1), enigmaHUD(1) ];
+row2 = na_row;
 row3 = na_row;
 row4 = [ na, cbA, na, inputPaneTop, na ];
 row5 = [ na, cbB, na, inputPaneMid, na ];
@@ -141,12 +142,10 @@ layer1 = [ row1; row2; row3; row4; row5; row6; row7; row8; row9; row10; row11; r
 layer2 = repmat(na, 12, 18);
 
 % Manual overwrites for layer 2.
-row1 = [ nspace(na, 3), textNeg, textNeg, textNeg, na, textNeg, nspace(na, 10)];
 row7 = [ nspace(na, 12), noData, nspace(na, 4) ];
 
 
 % Compile manual layer 2.
-layer2 = mow(layer2, row1, [0,0]);
 layer2 = mow(layer2, row7, [6,0]);
 
 % Auto overwrites for layer 2.
@@ -202,6 +201,7 @@ while 1
                 game_scene.sound(sfx_done);
                 pturn = ~pturn;
                 pturnmoves = 1;
+                eturn = eturn + 1;
 
             case 'space'
                 % If piece was picked up AND piece player was black or
@@ -273,6 +273,9 @@ while 1
                                 enignet = enignet - 1;
                             end
                         end
+
+                        % Update checkmate status
+                        ischeckmate = cb.ischeckmate(2);
                     end
                 end
 
@@ -293,23 +296,73 @@ while 1
         % Black's turn (1)
     else
         while pturnmoves > 0
-            [oldb, newb] = bot.nextmove(cb.checkcheck(2));
+            if ~ischeckmate
+                [oldb, newb] = bot.nextmove(cb.checkcheck(2), enigspace);
 
-            % Draw selector to screen, move piece, play sfx
-            pause(1.2);
-            layer2 = mow(layer2, moveEnigma(2), newb + [2,0]);
-            if ~iseabs(cb.pmove(oldb, newb))
-                game_scene.sound(sfx_cap);
-            else
-                game_scene.sound(sfx_sdown);
+                % If moved to enigma, "add enigma" (plays sounds, but bot
+                % just immediately applies them to random pieces).
+                % Add enigma if moved to enigma
+                if psame(newb, enigspace)
+
+                    % "Add enigma"
+                    enigspace = [];
+
+                    game_scene.sound(sfx_enighit);
+                    pause(1.5)
+
+                
+                    % Apply 3 enigma. Only does so to bishops, pawns, knights
+                    % for now.
+        
+                    for i = 1:3
+                        % Omnipool of pieces to randomly pick one to apply
+                        % enigma for. They all can receive some enigmatype.
+                        global BlackBishop BlackPawn BlackKnight;
+                        opool = [ cb.pquery(BlackBishop), cb.pquery(BlackPawn), cb.pquery(BlackKnight) ];
+
+                        for i = length(opool):-1:1
+                            % { piece, [x,y] }
+                            oentry = opool{i};
+
+                            % If not canae (not any enigma we can add),
+                            % remove.
+                            if isempty(oentry{1}.canae())
+                                opool(i) = [];
+                            end
+                        end
+
+                        % Pick a random piece from omnipool to add enigma to
+                        % (and roll random valid enigma)
+                        opiece = randget(opool);
+                        oenigma = randget(opiece{1}.canae());
+
+                        % Add enigma.
+                        game_scene.sound(sfx_enigapp);
+                        pause(0.8);
+                        cb.eniga(opiece{2}, oenigma);
+                    end
+                end
+
+                % Draw selector to screen, move piece, play sfx
+                pause(0.2);
+                layer2 = mow(layer2, moveEnigma(2), newb + [2,0]);
+                if ~iseabs(cb.pmove(oldb, newb))
+                    game_scene.sound(sfx_cap);
+                else
+                    game_scene.sound(sfx_sdown);
+                end
+
+                % Update checkmate
+                ischeckmate = cb.ischeckmate(2);
             end
 
             pturnmoves = pturnmoves - 1;
         end
 
-        % Toggle turn and reset moves
+        % Toggle turn, increment enigma turns, reset turn moves.
         pturnmoves = 1;
         pturn = ~pturn;
+        eturn = eturn + 1;
     end
 
 
@@ -320,9 +373,10 @@ while 1
     layer2 = mow(layer2, cb.correspond(@pieceMapper), [3,1]);
 
     % Create enigma if needed
-    if isempty(enigspace) && randp(10)
+    if isempty(enigspace) && eturn > 4 && randp(2)
         enigspace = randget(cb.aquery());
         enigspace = enigspace{2};
+        eturn = 0;
     end
 
     % Draw layer2 enigma space if existent.
@@ -350,51 +404,47 @@ while 1
             sprValid = moveValid(1);
             sprEnigma = moveEnigma(1);
         end
-        
-        
+
+
         if ~isempty(unwrap(kfvmoves))
             for vmove = kfvmoves
                 layer3 = mow(layer3, sprValid, vmove{1} + [2,0]);
             end
         end
-        
+
         if ~isempty(unwrap(kfevmoves))
             for evmove = kfevmoves
                 layer3 = mow(layer3, sprEnigma, evmove{1} + [2,0]);
             end
         end
-
-        ischeckmate = isempty(unwrap(kfvmoves)) && isempty(unwrap(kfevmoves));
-
     end
 
-        % Place cursor and overwrite.
-        kbrel = applykb(kbrel, dir);
-        kbspr = cursorOpen(kbframe + 1);
-        kboff = rel2abs(kbrel, [2,0], 2);
+    % Place cursor and overwrite.
+    kbrel = applykb(kbrel, dir);
+    kbspr = cursorOpen(kbframe + 1);
+    kboff = rel2abs(kbrel, [2,0], 2);
 
-        layer3 = mow(layer3, kbspr, kboff);
+    layer3 = mow(layer3, kbspr, kboff);
 
 
-        % Overwrite layer 4 with enigma marks.
-        eqs = exti(cb.equery(), 2);
+    % Overwrite layer 4 with enigma marks.
+    eqs = exti(cb.equery(), 2);
 
-        if ~isempty(eqs)
-            for i = 1:length(eqs)
-                layer4 = mow(layer4, enigmaMark, eqs{i} + [2,0]);
-            end
+    if ~isempty(eqs)
+        for i = 1:length(eqs)
+            layer4 = mow(layer4, enigmaMark, eqs{i} + [2,0]);
         end
+    end
 
-        % Update display.
-        drawScene(game_scene, layer1, layer2, layer3, layer4);
+    % Update display.
+    drawScene(game_scene, layer1, layer2, layer3, layer4);
 
-        if ischeckmate
-            if pplayer == 2 % Last move by black checkmated white
-                game_scene.sound(sfx_win);
-            else
-                game_scene.sound(sfx_gameover);
-            end
-
-            break;
+    if ischeckmate
+        if pplayer == 1 % Last move by black checkmated white
+            game_scene.sound(sfx_win);
+        else % Last move by white checkmated black
+            game_scene.sound(sfx_gameover);
         end
+        break;
+    end
 end

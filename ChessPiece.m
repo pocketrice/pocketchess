@@ -25,6 +25,49 @@ classdef ChessPiece
             end
         end
 
+        % "Can add that enigma?"
+        % Checks if you can still add that enigma to this piece.
+        function result = cane(obj, enigmatype)
+            % If no enigmas, then assume yes.
+            if isempty(obj.Enigmas)
+                result = 1;
+            else
+                % Decompile enigmas.
+                edecomp = vdecomp(obj.Enigmas);
+
+                % Compare counts and set result whether over max or not.
+                epair = unwrap(avfilt(edecomp, enigmatype));
+                result = (epair{2} < enigmatype.Max);
+            end
+        end
+
+        % "Can add any enigmas?"
+        % Checks if you can still add ANY enigmas to this piece.
+        % "pes" = potential enigmas.
+        function [pes] = canae(obj)
+            % Decompose into counts for each item for filter (to remove)
+            edecomp = vdecomp(obj.Enigmas);
+
+            % Get all possible enigmas.
+            pen = EnigmaType.types(obj.Type);
+
+            for i = length(edecomp):-1:1
+                % Extract cell
+                edi = edecomp{i};
+
+                % If is not permanent (-1) and not at max, remove from edecomp
+                % filter.
+                if edi{2} ~= -1 && edi{2} < edi{1}.Max
+                    edecomp(i) = [];
+                end
+            end
+
+            % Check if any potential enigmas remain. We only need the first
+            % column as counts are irrelevant, and remove these.
+            pes = vfilt(pen, exti(edecomp, 1));
+        end
+        
+
         % Equals method
         function result = eq(obj, other)
             result = obj.Type == other.Type && obj.Player == other.Player;

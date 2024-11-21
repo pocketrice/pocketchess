@@ -11,7 +11,7 @@ classdef ChessBot < handle
         end
 
         % Do not call this if the bot is checkmated.
-        function [oldpos, newpos] = nextmove(obj, ischecked)
+        function [oldpos, newpos] = nextmove(obj, ischecked, enigspace)
             cb = obj.Board;
 
             % If checked (not checkmate — this is a precondition), short-circuit and pick move that resolves
@@ -21,7 +21,7 @@ classdef ChessBot < handle
                 rmoves = cb.rpmoves(2);
 
                 % Get random resolving move
-                rmove = randget(rmoves);
+                rmove = unwrap(randget(rmoves));
 
                 oldpos = rmove{1};
                 newpos = rmove{2};
@@ -35,7 +35,7 @@ classdef ChessBot < handle
                 % Get PDF based on game phase.
                 % [ pawn, knight, bishop, queen, rook, king ]
                 if obj.Turns < 2
-                    piecepv = [ 0.8, 0.2, 0, 0, 0, 0 ];
+                    piecepv = [ 0.8, 0.11, 0.03, 0.03, 0.03 ];
                 elseif obj.Turns < 8
                     piecepv = [ 0.2, 0.3, 0.2, 0.1, 0.1, 0.1 ];
                 else
@@ -48,13 +48,31 @@ classdef ChessBot < handle
 
                 isfound = 0;
 
-                % If any checking moves, prioritize.
-                chmoves = cb.chpmoves(2);
+                % If any moves that get to enigma, prioritize.
+                iscane = 0;
+                
+                % If any checking moves, prioritize. Remove non-resolving
+                % (puts in check) moves.
+                chmoves = cb.frpmoves(cb.chpmoves(2), 2);
 
-                % If any consuming moves, prioritize.
-                cmoves = cb.cpmoves(2);
+                % If any consuming moves, prioritize. Same as above.
+                cmoves = cb.frpmoves(cb.cpmoves(2), 2);
 
-                if ~isempty(unwrap(chmoves)) && ~randp(3) % 2/3 chance
+               
+                if ~isempty(enigspace)
+                    % Get all valid moves for player.
+                    vpmoves = cb.frpmoves(cb.vpmoves(2), 2);
+
+                    % Get index (if exists) of second end coord if
+                    % at enigspace. If non-zero, then iscane!
+                    iscane = has(exti(vpmoves, 2), enigspace);
+                end
+                    
+                if iscane
+                    vpair = vpmoves{iscane};
+                    oldpos = vpair{1};
+                    newpos = vpair{2};
+                elseif ~isempty(unwrap(chmoves)) && ~randp(3) % 2/3 chance
                     chmove = chmoves{1};
                     oldpos = chmove{1};
                     newpos = chmove{2};
@@ -75,20 +93,37 @@ classdef ChessBot < handle
                         % Piece choice type (e.g. BlackPawn)
                         pc_type = piecetv(pc_ind);
 
-                        % Piece type query (e.g. {[2,1], [2,2]...})
+                        % Piece type query (e.g. {[2,1], [2,2]...}). 
                         pc_query = cb.pquery(pc_type);
 
                         % Valid-move pieces for that type
                         pc_vpieces = cb.qvp(pc_query);
 
+
                         % If has valid move, pick a random one
                         if ~isempty(pc_vpieces)
-                            % Get pair of piece and pos, then extract pos.
-                            oldpos = pc_query{randget(pc_vpieces)};
-                            oldpos = oldpos{2};
+                            % Keep looping until you find a dang piece with a delectable resolving
+                            % move
+                            isresolving = 0;
 
-                            newpos = randget(cb.vmoves(oldpos));
+                            while ~isresolving
+                                % Get pair of piece and pos, then extract pos.
+                                oldpos = pc_query{randget(pc_vpieces)};
+                                oldpos = oldpos{2};
 
+                                isresolving = ~isempty(unwrap(cb.rmoves(oldpos)));
+                            end
+
+                            % If contains enigspace, go for it! Otherwise,
+                            % pick a random vmove.
+                            vmoves = cb.vmoves(oldpos);
+
+                            if has(vmoves, enigspace)
+                                newpos = enigspace;
+                            else
+                                newpos = randget(cb.frmoves(oldpos, cb.vmoves(oldpos)));
+                            end
+                           
                             isfound = 1;
 
                             % Otherwise, remove that choice and spread removed probability evenly.

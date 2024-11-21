@@ -14,5 +14,7 @@ function result = csame(c1, c2)
         result = (true && has(c2, i1));
         ind = ind + 1;
     end
+  else
+      result = false;
   end
 end

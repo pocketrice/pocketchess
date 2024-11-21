@@ -19,6 +19,25 @@ classdef EnigmaType
     end
 
     methods (Static=true)
+        function pen = types(ptype)
+            % The following code will be crucial when several enigmas
+            % present for each (not just pawn).
+            switch ptype
+                case PieceType.Pawn
+                    pen = [EnigmaType.Backtrot, EnigmaType.Sidewind];
+                case PieceType.Knight
+                    pen = EnigmaType.Protractor;
+                case PieceType.Bishop
+                    pen = EnigmaType.Missile;
+                case PieceType.Rook
+                    pen = EnigmaType.Magnesis;
+                case PieceType.King
+                    pen = EnigmaType.Panick;
+                case PieceType.Queen
+                    pen = EnigmaType.Chakra;
+            end
+        end
+
         function e = roll(piece)
             ptype = piece.Type;
             
@@ -39,23 +58,8 @@ classdef EnigmaType
             % items that shouldn't be added
             pfilt = vcomp(vfilt(edecomp, 0));
                     
-            
-            % The following code will be crucial when several enigmas
-            % present for each (not just pawn).
-            switch ptype
-                case PieceType.Pawn
-                    pen = [EnigmaType.Backtrot, EnigmaType.Sidewind];
-                case PieceType.Knight
-                    pen = EnigmaType.Protractor;
-                case PieceType.Bishop
-                    pen = EnigmaType.Missile;
-                case PieceType.Rook
-                    pen = EnigmaType.Magnesis;
-                case PieceType.King
-                    pen = EnigmaType.Panick;
-                case PieceType.Queen
-                    pen = EnigmaType.Chakra;
-            end
+            % Get all possible enigmas
+            pen = EnigmaType.types(ptype);
 
             % Randomly pick from filtered-out potential enigmas (filter is
             % items that cannot be picked anymore)

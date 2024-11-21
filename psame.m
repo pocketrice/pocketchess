@@ -28,5 +28,7 @@ function result = psame(c1, c2)
 
         ind = ind + 1;
     end
+  else
+      result = false;
   end
 end
