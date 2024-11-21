@@ -108,7 +108,7 @@ classdef betterGameEngine < handle
         end
 
         function sound(obj, ind)
-            %play(obj.sfxs{ind});
+            play(obj.sfxs{ind});
         end
             
 

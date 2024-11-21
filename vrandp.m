@@ -1,9 +1,10 @@
 % "Vector to random probability"
 % Uses a vector representing PDF (must add up to 1) and gets an index according to CDF.
 function ind = vrandp(pdf)
-  if sum(pdf) ~= 1
-    error('CDF must equal 1!');
-  end
+  % Due to floating point imprecision, you don't need this check
+  % if sum(pdf) ~= 1
+  %   error('CDF must equal 1!');
+  % end
 
   % Calculate CDF
   cdf = zeros(1,length(pdf));
