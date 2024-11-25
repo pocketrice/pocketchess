@@ -19,5 +19,51 @@ classdef Direction
         function obj = Direction(Offset)
             obj.Offset = Offset;
         end
+
+        % "Apply scalar"
+        % Scales offset by the scalar. This doesn't affect the Direction
+        % itself and instead returns the new vector.
+        function offset = scl(obj, mag)
+            offset = obj.Offset * mag;
+        end
+    end
+
+    methods (Static)
+        % "Normalise offset"
+        % @requires offset is unit-straight and 2-len
+        % Gets corresponding normalised Direction for a particular offset!
+        function dir = normalise(offset)
+            if ~isunst(offset) || length(offset) ~= 2
+                error("Direction.normalise can only be called on 2-len unit-straight offsets!");
+            end
+                    
+            % Rather than normalising the vector (@(a) a ./ norm(a))
+            % manually divide each dim to either 0 or 1, as normalising
+            % can't produce [1,1] but instead [0.7071, 0.7071].
+
+            % Also instead of a generic solution this is just hardcoded bc
+            % soz luls :>
+
+            % Comparison uses strings as switch statement cannot accept
+            % vectors.
+            switch mat2str(dnorm(offset))
+                case '[0 1]'
+                    dir = Direction.Left;
+                case '[0 -1]'
+                    dir = Direction.Right;
+                case '[1 0]'
+                    dir = Direction.Up;
+                case '[-1 0]'
+                    dir = Direction.Down;
+                case '[1 1]'
+                    dir = Direction.LeftUp;
+                case '[-1 1]'
+                    dir = Direction.LeftDown;
+                case '[1 -1]'
+                    dir = Direction.RightUp;
+                case '[-1 -1]'
+                    dir = Direction.RightDown;
+            end
+        end
     end
 end

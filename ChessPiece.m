@@ -1,10 +1,11 @@
-classdef ChessPiece
+classdef ChessPiece < handle
     properties
         Type % Must be PieceType
         Player % Must be 1 or 2
         Enigmas % Must be [EnigmaType, EnigmaType...]
-        Flag1 % Must be boolean; only used for King for castling (has castled?) and Pawn for 2-hop (has done 2-hop?)
-        %Flag2 % Must be boolean; only used by opposing Pawn for en passant (has this pawn just 2-hopped?)
+    
+        FlagPure % Must be boolean; only used for if the piece hasn't moved yet — this actually neatly takes care of King castling and Pawn 2-hop.
+        FlagTemp % Must be boolean; only used for "just occurred flags" — all piece's flag2 are reset at the END of the entire turn (both black and white have moved)
     end
 
     methods
@@ -12,32 +13,49 @@ classdef ChessPiece
             obj.Type = Type;
             obj.Player = Player;
             obj.Enigmas = [];
-            obj.Flag1 = false;
-            %obj.Flag2 = false;
+            obj.FlagPure = 1;
+            obj.FlagTemp = 0;
         end
 
-        % TODO: If using Flag2 you can somehow guarantee conditions using just 1
-        % flag for each scenario, so you can use other flag as "triggered
-        % once?" flag
-        function obj = triggerFlag(obj)
-            if (~obj.Flag1) 
-                obj.Flag1 = true;
-            end
+        % "Copy"
+        % Makes a copy of this object (just type and player).
+        function piece = cpy(obj)
+            piece = ChessPiece(obj.Type, obj.Player);
         end
+
+        % "Full copy"
+        % Makes a full copy of this object (all attributes).
+        function piece = fcpy(obj)
+            piece = obj.cpy();
+            piece.Enigmas = obj.Enigmas;
+            piece.FlagPure = obj.FlagPure;
+            piece.FlagTemp = obj.FlagTemp;
+        end
+
 
         % "Can add that enigma?"
         % Checks if you can still add that enigma to this piece.
         function result = cane(obj, enigmatype)
-            % If no enigmas, then assume yes.
-            if isempty(obj.Enigmas)
-                result = 1;
+            % If invalid enigma type, shortcircuit.
+            if ~has(EnigmaType.types(obj.Type), enigmatype)
+                result = 0;
             else
-                % Decompile enigmas.
-                edecomp = vdecomp(obj.Enigmas);
+                if isempty(obj.Enigmas)
+                    result = 1;
+                else
+                    % Decompile enigmas.
+                    edecomp = vdecomp(obj.Enigmas);
 
-                % Compare counts and set result whether over max or not.
-                epair = unwrap(avfilt(edecomp, enigmatype));
-                result = (epair{2} < enigmatype.Max);
+                    % Compare counts and set result whether over max or not
+                    % (or permanent).
+                    epair = edecomp{ has(exti(edecomp, 1), enigmatype) };
+                    
+                    if enigmatype.Max == -1
+                        result = ~has(obj.Enigmas, enigmatype);
+                    else
+                        result = (epair{2} < enigmatype.Max);
+                    end
+                end
             end
         end
 
@@ -66,8 +84,31 @@ classdef ChessPiece
             % column as counts are irrelevant, and remove these.
             pes = vfilt(pen, exti(edecomp, 1));
         end
-        
 
+        % Add enigma
+        % Throws error if invalid enigma added.
+        function egadd(obj, enigma)
+            if ~obj.cane(enigma)
+                error("Enigma %s cannot be added to a %s!", string(enigma), string(obj.Type));
+            end
+
+            obj.Enigmas = [ obj.Enigmas, enigma ];
+        end
+
+        % Remove enigma
+        % Returns nothing if no enigmas/that enigma not present.
+        function eg = egrem(obj, enigma)
+            eind = has(obj.Enigmas, enigma);
+            if ~eind
+                fprintf("Warning: a %s piece (enigmas %s) could not remove %s; returning empty.", string(obj.Type), mat2str(obj.Enigmas), string(enigma));
+                eg = [];
+            else
+                eg = obj.Enigmas(eind);
+                obj.Enigmas(eind) = [];
+            end
+        end
+
+       
         % Equals method
         function result = eq(obj, other)
             result = obj.Type == other.Type && obj.Player == other.Player;
@@ -75,7 +116,7 @@ classdef ChessPiece
 
         % "Full" equals method
         function result = feq(obj, other)
-            result = obj.Type == other.Type && obj.Player == other.Player && obj.Flag1 == other.Flag2 && length(obj.Enigmas) == length(other.Enigmas) && all(obj.Enigmas == other.Enigmas);
+            result = obj.Type == other.Type && obj.Player == other.Player && obj.FlagTemp == other.FlagTemp && obj.FlagPure == other.FlagPure && length(obj.Enigmas) == length(other.Enigmas) && all(obj.Enigmas == other.Enigmas);
         end
     end
 end

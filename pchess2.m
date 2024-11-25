@@ -25,7 +25,7 @@ inputPaneBtm = stdPaneBtm + 50;
 enigmaHUD = [ 52, 31 ];
 
 % [ frame1, frame3, frame2, frame3 ]
-enigmaSpace = [32, 84, 33, 90]; 
+enigmaSpace = [32, 84, 33, 90];
 enigmaMark = 55;
 
 % ===================== CARDS ========================
@@ -46,7 +46,7 @@ cbB = [ 22, 21, 22, 21, 22, 21, 22, 21 ];
 % ===================== MISC ========================
 % Starts from top and goes clockwise
 dirArrows = [ 9, 8, 7, 18, 17, 20, 19, 10 ];
-ranks = 71:75; 
+ranks = 71:75;
 
 % [ no, data ]
 noData = [ 81, 82 ];
@@ -107,7 +107,7 @@ layer2 = repmat(na, 12, 18);
 
 % Manual overwrites for layer 2.
 row7 = [ nspace(na, 12), noData, nspace(na, 4) ];
-    
+
 
 % Compile manual layer 2.
 layer2 = mow(layer2, row7, [6,0]);
@@ -133,8 +133,8 @@ drawScene(game_scene, layer1, layer2, layer3);
 % %%%%%%%%%%%%%%%%%%%%%
 
 while 1
-% White's turn
-if pturn
+    % White's turn
+    if pturn
         key = getKeyboardInput(game_scene);
         dir = Direction.NA;
         switch key
@@ -145,13 +145,13 @@ if pturn
             case 'return'
                 pturn = ~pturn;
                 pturnmoves = 1;
-        
+
             case 'space'
                 % If piece placing down AND piece player was black, location not valid, or no turns left OR piece picking up but space empty block.
                 if ~(kbframe && (~has(kfvmoves, kbrel) || kfplayer == 2 || pturnmoves == 0) || (cb.iserel(applykb(kbrel, dir))))
-                
-                % Otherwise... (piece picked up is valid or placed on valid
-                % location with turns remaining)
+
+                    % Otherwise... (piece picked up is valid or placed on valid
+                    % location with turns remaining)
                     % Switch kb selector sprite
                     kbframe = ~kbframe;
 
@@ -177,57 +177,56 @@ if pturn
             case 'downarrow'
                 dir = Direction.Up;
         end
-    
-  % Black's turn
-  else 
-       while pturnmoves > 0
-           [oldb, newb] = bot.nextmove();
 
-           % Move piece, play sfx
-           pause(1.2);
-          
-           cb.pmove(oldb, newb);
-         
-           pturnmoves = pturnmoves - 1;
-       end
+        % Black's turn
+    else
+        while pturnmoves > 0
+            [oldb, newb] = bot.nextmove();
 
-       % Toggle turn and reset moves
-       pturnmoves = 1;
-       pturn = ~pturn;
-  end
+            % Move piece, play sfx
+            pause(1.2);
 
-% Update layer2 board
-layer2 = mow(layer2, cb.correspond(@pieceMapper), [3,1]);
+            cb.pmove(oldb, newb);
 
-% Clear layer3 and layer4
-layer3(:) = na;
-layer4(:) = na;
+            pturnmoves = pturnmoves - 1;
+        end
 
-% Apply changes if selected (piece hologram, vmoves)
-if kbframe
-    kfvmoves = cb.vmoves(kfcurr);
+        % Toggle turn and reset moves
+        pturnmoves = 1;
+        pturn = ~pturn;
+    end
 
-    for vmove = kfvmoves
-        layer3 = mow(layer3, moveValid(1), vmove{1} + [2,0]);
+    % Update layer2 board
+    layer2 = mow(layer2, cb.correspond(@pieceMapper), [3,1]);
+
+    % Clear layer3 and layer4
+    layer3(:) = na;
+    layer4(:) = na;
+
+    % Apply changes if selected (piece hologram, vmoves)
+    if kbframe
+        kfvmoves = cb.vmoves(kfcurr);
+
+        for vmove = kfvmoves
+            layer3 = mow(layer3, moveValid(1), vmove{1} + [2,0]);
+        end
+    end
+
+    % Place cursor and overwrite.
+    kbrel = applykb(kbrel, dir);
+    kbspr = moveReg(kbframe + 1);
+    kboff = rel2abs(kbrel, [2,0], 2);
+
+    layer3 = mow(layer3, kbspr, kboff);
+
+
+    % Update display.
+    drawScene(game_scene, layer1, layer2, layer3, layer4);
+
+    % Check kings for game state.
+    kq = cb.kquery();
+
+    if iseabs(kq{2}) || iseabs(kq{1})
+        break;
     end
 end
-
-% Place cursor and overwrite.
-kbrel = applykb(kbrel, dir);
-kbspr = moveReg(kbframe + 1);
-kboff = rel2abs(kbrel, [2,0], 2);
-
-layer3 = mow(layer3, kbspr, kboff);
-
-
-% Update display.
-drawScene(game_scene, layer1, layer2, layer3, layer4);
-
-% Check kings for game state.
-kq = cb.kquery();
-
-if iseabs(kq{2}) || iseabs(kq{1})
-    break;
-end
-end
- 

@@ -1,6 +1,7 @@
 % *************************** NOTE *******************************
 % retro_chess.png is a custom spritesheet and must be imported.
 % ****************************************************************
+ global BlackBishop BlackPawn BlackKnight;
 
 % Instantiate game scene.
 game_scene = betterGameEngine('retro_chess.png', 16, 16, 4, [67, 55, 65]);
@@ -98,7 +99,7 @@ enigframe = 1;
 pturn = 0;
 pturnmoves = 1;
 eturn = 0;
-ischeckmate = 0;
+moverem = 1;
 
 % Magnesis tracker and position of magnetised piece (rook)
 ismagnesis = 0;
@@ -174,9 +175,15 @@ while 1
 
     % White's turn (0)
     if ~pturn
+        % Change enigma animation frame
         enigframe = circ(enigframe + 1, 1, 4);
+
+        % Get keyboard input
         key = getKeyboardInput(game_scene);
+
+        % Clear keyboard direction
         dir = Direction.NA;
+
         switch key
             case 'escape'
                 if kbframe
@@ -188,12 +195,17 @@ while 1
                     kbframe = 0;
                 end
             case 'tab'
-                eroll = EnigmaType.roll(cb.get(kfcurr));
+                % Bloc if kfcurr wasn't updated (empty).
+                if ~cb.iserel(kfcurr)
+                    eroll = EnigmaType.roll(cb.get(kfcurr));
 
-                if kbframe && enigcount > 0 && ~isempty(eroll)
-                    game_scene.sound(sfx_enigapp);
-                    cb.eniga(kfcurr, eroll);
-                    enigcount = enigcount - 1;
+                    if kbframe && enigcount > 0 && ~isempty(eroll)
+                        game_scene.sound(sfx_enigapp);
+                        cb.get(kfcurr).egadd(eroll);
+                        enigcount = enigcount - 1;
+                    else
+                        game_scene.sound(sfx_bloc);
+                    end
                 else
                     game_scene.sound(sfx_bloc);
                 end
@@ -202,7 +214,12 @@ while 1
                 pturn = ~pturn;
                 pturnmoves = 1;
                 eturn = eturn + 1;
+                moverem = 1;
 
+                % If still selected after turn ended, unselect.
+                if kbframe
+                    kbframe = 0;
+                end
             case 'space'
                 % If piece was picked up AND piece player was black or
                 % wasn't magnesis and no turns left OR is magnesis and not mag piece, block.
@@ -233,6 +250,11 @@ while 1
                         % Decrement turn moves.
                         pturnmoves = pturnmoves - 1;
 
+                        % If no turn moves left, notify.
+                        if pturnmoves == 0
+                            moverem = 0;
+                        end
+
                         % Move piece and play sound; decrement turn moves
                         if (~iseabs(cb.pmove(kfcurr, kbrel)))
                             game_scene.sound(sfx_cap);
@@ -241,7 +263,7 @@ while 1
 
                             % If rook with Magnesis and did not capture,
                             % set magnesis flag!
-                            if (cb.get(kbrel).Type == PieceType.Rook && ~isempty(cb.get(kbrel).Enigmas))
+                            if cb.get(kbrel).Type == PieceType.Rook && has(cb.get(kbrel).Enigmas, EnigmaType.Magnesis)
                                 ismagnesis = 1;
                                 magpos = kbrel;
                             end
@@ -258,10 +280,10 @@ while 1
                             enigspace = [];
 
                             % Net enigma gained
-                            enignet = 3 - enigcount;
+                            enignet = 2 - enigcount;
 
                             % Fill enigma
-                            enigcount = 3;
+                            enigcount = 2;
 
 
                             game_scene.sound(sfx_enighit);
@@ -273,9 +295,6 @@ while 1
                                 enignet = enignet - 1;
                             end
                         end
-
-                        % Update checkmate status
-                        ischeckmate = cb.ischeckmate(2);
                     end
                 end
 
@@ -296,8 +315,8 @@ while 1
         % Black's turn (1)
     else
         while pturnmoves > 0
-            if ~ischeckmate
-                [oldb, newb] = bot.nextmove(cb.checkcheck(2), enigspace);
+            if cb.Checks(2) ~= 2
+                [oldb, newb] = bot.nextmove(enigspace);
 
                 % If moved to enigma, "add enigma" (plays sounds, but bot
                 % just immediately applies them to random pieces).
@@ -308,26 +327,24 @@ while 1
                     enigspace = [];
 
                     game_scene.sound(sfx_enighit);
-                    pause(1.5)
+                    pause(1.5);
 
-                
-                    % Apply 3 enigma. Only does so to bishops, pawns, knights
+                    % Apply 2 enigma. Only does so to bishops, pawns, knights
                     % for now.
-        
-                    for i = 1:3
+
+                    for i = 1:2
                         % Omnipool of pieces to randomly pick one to apply
                         % enigma for. They all can receive some enigmatype.
-                        global BlackBishop BlackPawn BlackKnight;
                         opool = [ cb.pquery(BlackBishop), cb.pquery(BlackPawn), cb.pquery(BlackKnight) ];
 
-                        for i = length(opool):-1:1
+                        for j = length(opool):-1:1
                             % { piece, [x,y] }
-                            oentry = opool{i};
+                            oentry = opool{j};
 
                             % If not canae (not any enigma we can add),
                             % remove.
                             if isempty(oentry{1}.canae())
-                                opool(i) = [];
+                                opool(j) = [];
                             end
                         end
 
@@ -339,7 +356,7 @@ while 1
                         % Add enigma.
                         game_scene.sound(sfx_enigapp);
                         pause(0.8);
-                        cb.eniga(opiece{2}, oenigma);
+                        cb.get(opiece{2}).egadd(oenigma);
                     end
                 end
 
@@ -351,9 +368,6 @@ while 1
                 else
                     game_scene.sound(sfx_sdown);
                 end
-
-                % Update checkmate
-                ischeckmate = cb.ischeckmate(2);
             end
 
             pturnmoves = pturnmoves - 1;
@@ -373,7 +387,7 @@ while 1
     layer2 = mow(layer2, cb.correspond(@pieceMapper), [3,1]);
 
     % Create enigma if needed
-    if isempty(enigspace) && eturn > 4 && randp(2)
+    if isempty(enigspace) && eturn > 6 && randp(4)
         enigspace = randget(cb.aquery());
         enigspace = enigspace{2};
         eturn = 0;
@@ -397,7 +411,7 @@ while 1
         kfvmoves = cb.rmoves(kfcurr);
         kfevmoves = cb.removes(kfcurr);
 
-        if cb.checkcheck(pplayer)
+        if cb.Checks(pplayer)
             sprValid = moveCheck(1);
             sprEnigma = moveCheck(1);
         else
@@ -419,10 +433,14 @@ while 1
         end
     end
 
-    % Place cursor and overwrite.
+    % Place appropriate cursor and overwrite.
     kbrel = applykb(kbrel, dir);
-    kbspr = cursorOpen(kbframe + 1);
     kboff = rel2abs(kbrel, [2,0], 2);
+    if moverem
+        kbspr = cursorOpen(kbframe + 1);
+    else
+        kbspr = cursorClosed(kbframe + 1);
+    end
 
     layer3 = mow(layer3, kbspr, kboff);
 
@@ -439,12 +457,10 @@ while 1
     % Update display.
     drawScene(game_scene, layer1, layer2, layer3, layer4);
 
-    if ischeckmate
-        if pplayer == 1 % Last move by black checkmated white
-            game_scene.sound(sfx_win);
-        else % Last move by white checkmated black
-            game_scene.sound(sfx_gameover);
-        end
+    if cb.Checks(2) == 2 % Black checkmated
+        game_scene.sound(sfx_win);
+    elseif cb.Checks(1) == 2 % White checkmated
+        game_scene.sound(sfx_gameover);
         break;
     end
 end

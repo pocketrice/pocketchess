@@ -6,8 +6,9 @@ function post = vfilt(pre, f)
   post = pre;
 
   % For every filter item (fi) in filter (f), remove until post index (pi)
-  % ~= 0.
-  for fi = f
+  % ~= 0. 
+  for i = 1:length(f)
+    fi = unwrap(f(i));
     pi = has(post, fi);
 
     while pi

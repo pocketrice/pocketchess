@@ -198,7 +198,7 @@ if pturn
                 % If piece was (a) picked up but location is not valid (enigma
                 % or reg) OR (b) wasn't picked up and location empty — in other words not selecting a piece to pick up 
                 % then block.
-                elseif (kbframe && (cb.checkcheck(player) ~has(kfvmoves, kbrel) && ~has(kfevmoves, kbrel)) || (~kbframe && cb.iserel(applykb(kbrel, dir)))
+                elseif (kbframe && ~has(kfvmoves, kbrel) && ~has(kfevmoves, kbrel)) || (~kbframe && cb.iserel(applykb(kbrel, dir)))
                     game_scene.sound(sfx_err);
                 % Otherwise... (piece picked up is valid or placed on valid
                 % location with turns remaining)

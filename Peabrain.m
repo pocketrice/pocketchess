@@ -1,7 +1,7 @@
 % Peabrain is VERY SMART. This is STOCKFISH but 100x SMARTER — think 10
 % DEEP BLUES combined into one.
 % ...if you consider breaking the fundamental rules of chess to sacrifice a
-% queen smart. hahahaha (>_<)/
+% queen smart. hahahaha (>.<)/
 
 classdef Peabrain < handle
     properties

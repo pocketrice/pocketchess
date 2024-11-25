@@ -11,12 +11,12 @@ classdef ChessBot < handle
         end
 
         % Do not call this if the bot is checkmated.
-        function [oldpos, newpos] = nextmove(obj, ischecked, enigspace)
+        function [oldpos, newpos] = nextmove(obj, enigspace)
             cb = obj.Board;
 
             % If checked (not checkmate — this is a precondition), short-circuit and pick move that resolves
             % check.
-            if ischecked
+            if cb.Checks(2)
                 % Get all resolving moves
                 rmoves = cb.rpmoves(2);
 
@@ -68,18 +68,28 @@ classdef ChessBot < handle
                     iscane = has(exti(vpmoves, 2), enigspace);
                 end
                     
+                % todo!!! :> some way to sort each bracket's moves based on
+                % priority (consume enigma pieces, consume/check with
+                % cheapest pieces).
+                
+                % ***** PRIORITY MOVES *****
+                % Reaches enigma?
                 if iscane
                     vpair = vpmoves{iscane};
                     oldpos = vpair{1};
                     newpos = vpair{2};
+                % Checks opponent?
                 elseif ~isempty(unwrap(chmoves)) && ~randp(3) % 2/3 chance
                     chmove = chmoves{1};
                     oldpos = chmove{1};
                     newpos = chmove{2};
+                % Consumes opponent piece?
                 elseif ~isempty(unwrap(cmoves)) && ~randp(4) % 3/4 chance
                     cmove = cmoves{1};
                     oldpos = cmove{1};
                     newpos = cmove{2};
+                
+                % ***** REGULAR MOVES *****
                 else
                     while ~isfound
                         % If no choices, throw error.
@@ -87,6 +97,7 @@ classdef ChessBot < handle
                             error("There were no possible moves for opponent!");
                         end
 
+                        disp("FINDING");
                         % Piece choice index (e.g. 3)
                         pc_ind = vrandp(piecepv);
 
@@ -107,6 +118,7 @@ classdef ChessBot < handle
                             isresolving = 0;
 
                             while ~isresolving
+                                disp("RESOLVING");
                                 % Get pair of piece and pos, then extract pos.
                                 oldpos = pc_query{randget(pc_vpieces)};
                                 oldpos = oldpos{2};
