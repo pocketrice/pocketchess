@@ -99,6 +99,8 @@ classdef ChessBoard < handle
                % Update check status (there is a chance initial layout
                % may already create check)
                obj.checkcheck();
+
+
         end
 
         % "Set board up"
@@ -171,9 +173,9 @@ classdef ChessBoard < handle
 
         % "Enigma query"
         %
-        % Gets all enigma pieces.
-        function pieces = equery(obj)
-            indices = find(cellfun(@(p) ~iseabs(p) && ~isempty(p.Enigmas), obj.Board));
+        % Gets all enigma pieces for that player.
+        function pieces = equery(obj, player)
+            indices = find(cellfun(@(p) ~iseabs(p) && p.Player == player && ~isempty(p.Enigmas), obj.Board));
 
             pieces = arrayfun(@(ind) {obj.get(unflat(ind, 8)), unflat(ind, 8)}, indices, 'UniformOutput', false);
         end
@@ -1103,9 +1105,93 @@ classdef ChessBoard < handle
         % "Board score"
         % For the purposes of making the AI pick prioritising moves, use
         % this to get a quantitative comparator for the current (or
-        % look-ahead) board.
-        function [wscore, bscore] = score(obj)
-            % 30 points for check
+        % look-ahead) board. Score should not be based on lookaheads.
+        % Positive favours white, vice versa for black. Location-agnostic.
+
+        % Note shown score adds are relative to each player (+ for black should
+        % be -).
+
+        % This is handy for an alternative gamemode (e.g. based on reaching
+        % particular score) or for bot in determining spread of move
+        % priority
+        % (higher score disparity = tighter chance spread = higher chance of #1 move).
+        function score = bscore(obj)
+            % +10 (+5/r) for each piece (+ for each rank)
+            % +5/e for total enigmas
+            score = 0;
+
+            % Location-agnostic so strip locs.
+            pieces = exti(obj.query(), 1);
+            
+            for i = 1:length(pieces)
+                piece = pieces{i};
+                
+                score = score + circ(piece.Player, -1, 1) * 10 + 5 * piece.rank() + 5 * length(piece.Enigmas());
+            end
+        end
+
+        % "Move score"
+        % Gets the added score for the given move. Don't compound this with
+        % board score. See bscore() for more details. Preferably, retain priority brackets unless it is particularly
+        % egregious (puts self in check, loses queen, etc). This is a
+        % VERY COSTLY(!!!!) operation.
+        %
+        % This score is RELATIVE to the player!
+        function score = mscore(obj, oldPos, newPos, enigspace)
+            score = 0;
+          
+            mpiece = obj.get(oldPos);
+            mplayer = mpiece.Player;
+            oplayer = circ(mplayer+1, 1, 2);
+            mtype = mpiece.Type;
+            mcap = obj.pmove(oldPos, newPos);
+            
+            % +999 for checkmates opponent, +30 for checks opponent
+            if obj.Checks(mplayer) == 2
+                score = score + 999;
+            elseif obj.Checks(mplayer) == 1
+                score = score + 30;
+            end
+
+            % +50 for castling
+            if mtype == PieceType.King && ~has(mpiece.Enigmas, EnigmaType.Panick) && psame([offset(1), abs(offset(2))], [0,2])
+                score = score + 50;
+            end
+            
+            % +20 (+5/r) for consumes piece (+ for captured's rank), +5/e for
+            % each of consumed's enigma
+            if ~iseabs(mcap)
+                score = score + 20 + 5 * abs(mcap.rank()) + 5 * length(mpiece.Enigmas);
+            % +25 (-2/e) for gets enigma (- for total enigmas, minimum 10)
+            elseif psame(newPos, enigspace)
+                score = score + max(25 - 2 * sum(cellfun(@(p) length(p.Enigmas), obj.equery(mplayer))), 10);
+            end
+                
+            % +3/m for each additional potential consume (after moving)
+            score = score + 3 * length(obj.cmoves(newPos));
+
+            % -15 (-5/r, -5/o) if piece can be consumed next turn (- for your rank? rank disparity? & for # of opponents taking u)
+            oppocmoves = obj.cpmoves(oplayer);
+
+            if has(exti(oppocmoves, 2), newPos)
+                score = score - 15 - 5 * abs(mpiece.rank()) - 5 * length(avfilt(exti(oppocmoves, 2), newPos));
+            end
+
+             % +10/p for each piece protecting this piece (due to this
+             % obscure use-case, it doesn't warrant another +50 lines to
+             % this abhorrently long file...!)
+
+             % This uses a clever trick due to being the last operation on
+             % this "temp board"; by swapping player of moved piece you can
+             % check if any cmoves of YOU can "capture" that piece.
+             mpiece.Player = oplayer;
+
+             score = score + 10 * length(avfilt(exti(obj.cmoves(mplayer)), newPos));
+            
+             % Restore board
+             obj.pmove(newPos, oldPos);
+             obj.pow(newPos, mcap);
+        end
 
         % "Move piece"
         % Moves the piece at old position to new position.
@@ -1281,7 +1367,7 @@ classdef ChessBoard < handle
         % (mostly) internal now.
         %
         % This code is a highly optimised combo of the decoupled "cmoves", "ischeck",
-        % and  "ischeckmate" due to high # of calls to checkcheck which is
+        % and "ischeckmate" due to high # of calls to checkcheck which is
         % inherently slow.
         function checkcheck(obj)
             for player = 1:2

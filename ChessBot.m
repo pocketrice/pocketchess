@@ -2,12 +2,19 @@ classdef ChessBot < handle
     properties
         Board
         Turns
+        IsVerbose
     end
 
     methods
-        function obj = ChessBot(Board)
+        function obj = ChessBot(Board, IsVerbose)
             obj.Board = Board;
             obj.Turns = 1;
+            
+            if nargin > 1
+                obj.IsVerbose = IsVerbose;
+            else
+                obj.IsVerbose = false;
+            end
         end
 
         % Do not call this if the bot is checkmated.

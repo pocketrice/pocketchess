@@ -4,10 +4,12 @@
  global BlackBishop BlackPawn BlackKnight;
 
 % Instantiate game scene.
-game_scene = betterGameEngine('retro_chess.png', 16, 16, 4, [67, 55, 65]);
+game_scene = betterGameEngine('retro_chess.png', 16, 16, 4, [67, 55, 65], 1);
 
 % Cache sound effects.
 sfx_move = game_scene.cachesound("audio/scrolle.wav");
+sfx_movehor = game_scene.cachesound("audio/cur_hor.wav");
+sfx_movever = game_scene.cachesound("audio/cur_ver.wav");
 sfx_sel = game_scene.cachesound("audio/selected.wav");
 sfx_sup = game_scene.cachesound("audio/dollop.wav");
 sfx_sdown = game_scene.cachesound("audio/cancel.wav");
@@ -24,6 +26,8 @@ sfx_enigapp = game_scene.cachesound("audio/coin.wav");
 sfx_chup = game_scene.cachesound("audio/switch_act.wav");
 sfx_chd = game_scene.cachesound("audio/switch_end.wav");
 sfx_bomp = game_scene.cachesound("audio/bomp.wav");
+sfx_debug = game_scene.cachesound("audio/present.wav");
+sfx_blip = game_scene.cachesound("audio/m3_blip.flac");
 
 % Get icon indices.
 % ==================== PANES ========================
@@ -53,7 +57,6 @@ enigmaMark = 55;
 % ===================== CARDS ========================
 cardHUD = 35;
 cardNum = 41:50;
-cardSpace = 34;
 cbSelBlack = 83;
 cbSelWhite = 84;
 effPaneClock = 62;
@@ -82,6 +85,8 @@ moveValid = [ 54, 53 ];
 moveEnigma = [ 95, 94 ];
 moveCheck = [ 97, 96 ];
 
+cursorDebug = [ 61, 51 ];
+markerDebug = 34;
 
 % [ dvi1, dvi2 ]
 dviEx = [ 91, 92 ];
@@ -95,11 +100,16 @@ na_row = nspace(na, 18);
 % ====================== SCENE 1 ========================
 % Game state trackers.
 kbframe = 0;
+debugframe = 0;
 enigframe = 1;
 pturn = 0;
 pturnmoves = 1;
 eturn = 0;
 moverem = 1;
+
+% Debug marker.
+debugFrom = [];
+debugTo = [];
 
 % Magnesis tracker and position of magnetised piece (rook)
 ismagnesis = 0;
@@ -185,6 +195,9 @@ while 1
         dir = Direction.NA;
 
         switch key
+            case 'backspace'
+                debugframe = ~debugframe;
+                game_scene.sound(sfx_debug);
             case 'escape'
                 if kbframe
                     if kfplayer == 2
@@ -221,94 +234,106 @@ while 1
                     kbframe = 0;
                 end
             case 'space'
-                % If piece was picked up AND piece player was black or
-                % wasn't magnesis and no turns left OR is magnesis and not mag piece, block.
-                if kbframe && (kfplayer == 2 || (~ismagnesis && pturnmoves <= 0) || (ismagnesis && ~all(kfcurr == magpos)))
-                    game_scene.sound(sfx_bomp);
-                    % If piece was (a) picked up but location is not valid (enigma
-                    % or reg) OR (b) wasn't picked up and location empty — in other words not selecting a piece to pick up
-                    % then block.
-                elseif (kbframe && ~has(kfvmoves, kbrel) && ~has(kfevmoves, kbrel)) || (~kbframe && cb.iserel(applykb(kbrel, dir)))
-                    game_scene.sound(sfx_err);
-                    % Otherwise... (piece picked up is valid or placed on valid
-                    % location with turns remaining or magnesis and rook picked up)
-                else
-                    % Switch kb selector sprite
-                    kbframe = ~kbframe;
-
-                    % Check if JUST placed/picked up.
-                    if kbframe
-                        kfcurr = applykb(kbrel, dir);
-                        kfplayer = cb.get(kfcurr).Player;
-
-                        if kfplayer == 1
-                            game_scene.sound(sfx_sup);
-                        else
-                            game_scene.sound(sfx_chup);
-                        end
+                if debugframe
+                    if isempty(debugFrom)
+                        debugFrom = applykb(kbrel, dir);
+                        game_scene.sound(sfx_blip);
+                    elseif isempty(debugTo)
+                        debugTo = applykb(kbrel, dir);
+                        game_scene.sound(sfx_blip);
                     else
-                        % Decrement turn moves.
-                        pturnmoves = pturnmoves - 1;
+                        game_scene.sound(sfx_bloc);
+                    end
+                else
+                    % If piece was picked up AND piece player was black or
+                    % wasn't magnesis and no turns left OR is magnesis and not mag piece, block.
+                    if kbframe && (kfplayer == 2 || (~ismagnesis && pturnmoves <= 0) || (ismagnesis && ~all(kfcurr == magpos)))
+                        game_scene.sound(sfx_bomp);
+                        % If piece was (a) picked up but location is not valid (enigma
+                        % or reg) OR (b) wasn't picked up and location empty — in other words not selecting a piece to pick up
+                        % then block.
+                    elseif (kbframe && ~has(kfvmoves, kbrel) && ~has(kfevmoves, kbrel)) || (~kbframe && cb.iserel(applykb(kbrel, dir)))
+                        game_scene.sound(sfx_err);
+                        % Otherwise... (piece picked up is valid or placed on valid
+                        % location with turns remaining or magnesis and rook picked up)
+                    else
+                        % Switch kb selector sprite
+                        kbframe = ~kbframe;
 
-                        % If no turn moves left, notify.
-                        if pturnmoves == 0
-                            moverem = 0;
-                        end
+                        % Check if JUST placed/picked up.
+                        if kbframe
+                            kfcurr = applykb(kbrel, dir);
+                            kfplayer = cb.get(kfcurr).Player;
 
-                        % Move piece and play sound; decrement turn moves
-                        if (~iseabs(cb.pmove(kfcurr, kbrel)))
-                            game_scene.sound(sfx_cap);
-                        else
-                            game_scene.sound(sfx_sdown);
-
-                            % If rook with Magnesis and did not capture,
-                            % set magnesis flag!
-                            if cb.get(kbrel).Type == PieceType.Rook && has(cb.get(kbrel).Enigmas, EnigmaType.Magnesis)
-                                ismagnesis = 1;
-                                magpos = kbrel;
+                            if kfplayer == 1
+                                game_scene.sound(sfx_sup);
+                            else
+                                game_scene.sound(sfx_chup);
                             end
-                        end
+                        else
+                            % Decrement turn moves.
+                            pturnmoves = pturnmoves - 1;
 
-                        % If magnesis already used (pturnmoves less than
-                        % 0), disable magnesis.
-                        if pturnmoves < 0
-                            ismagnesis = 0;
-                        end
+                            % If no turn moves left, notify.
+                            if pturnmoves == 0
+                                moverem = 0;
+                            end
 
-                        % Add enigma if moved to enigma
-                        if (~isempty(enigspace) && all(kbrel == enigspace))
-                            enigspace = [];
+                            % Move piece and play sound; decrement turn moves
+                            if (~iseabs(cb.pmove(kfcurr, kbrel)))
+                                game_scene.sound(sfx_cap);
+                            else
+                                game_scene.sound(sfx_sdown);
 
-                            % Net enigma gained
-                            enignet = 2 - enigcount;
+                                % If rook with Magnesis and did not capture,
+                                % set magnesis flag!
+                                if cb.get(kbrel).Type == PieceType.Rook && has(cb.get(kbrel).Enigmas, EnigmaType.Magnesis)
+                                    ismagnesis = 1;
+                                    magpos = kbrel;
+                                end
+                            end
 
-                            % Fill enigma
-                            enigcount = 2;
+                            % If magnesis already used (pturnmoves less than
+                            % 0), disable magnesis.
+                            if pturnmoves < 0
+                                ismagnesis = 0;
+                            end
+
+                            % Add enigma if moved to enigma
+                            if (~isempty(enigspace) && all(kbrel == enigspace))
+                                enigspace = [];
+
+                                % Net enigma gained
+                                enignet = 2 - enigcount;
+
+                                % Fill enigma
+                                enigcount = 2;
 
 
-                            game_scene.sound(sfx_enighit);
-                            pause(1.5)
+                                game_scene.sound(sfx_enighit);
+                                pause(1.5)
 
-                            while enignet > 0
-                                game_scene.sound(sfx_enigadd);
-                                pause(0.8);
-                                enignet = enignet - 1;
+                                while enignet > 0
+                                    game_scene.sound(sfx_enigadd);
+                                    pause(0.8);
+                                    enignet = enignet - 1;
+                                end
                             end
                         end
                     end
                 end
 
             case 'leftarrow'
-                game_scene.sound(sfx_move);
+                game_scene.sound(sfx_movehor);
                 dir = Direction.Right;
             case 'uparrow'
-                game_scene.sound(sfx_move);
+                game_scene.sound(sfx_movever);
                 dir = Direction.Down;
             case 'rightarrow'
-                game_scene.sound(sfx_move);
+                game_scene.sound(sfx_movehor);
                 dir = Direction.Left;
             case 'downarrow'
-                game_scene.sound(sfx_move);
+                game_scene.sound(sfx_movever);
                 dir = Direction.Up;
         end
 
@@ -316,7 +341,23 @@ while 1
     else
         while pturnmoves > 0
             if cb.Checks(2) ~= 2
-                [oldb, newb] = bot.nextmove(enigspace);
+                % We can guarantee = 1 is FROM set and not TO set.
+                switch isempty(debugFrom) + isempty(debugTo)
+                    case 2
+                        [oldb, newb] = bot.nextmove(enigspace);
+                    case 1
+                        % TODO: use mscore?
+                    case 0
+                        if has(cb.vmoves(debugFrom), debugTo)
+                            oldb = debugFrom;
+                            newb = debugTo;
+                        else
+                            [oldb, newb] = bot.nextmove(enigspace);
+                        end
+
+                        debugFrom = [];
+                        debugTo = [];
+                end
 
                 % If moved to enigma, "add enigma" (plays sounds, but bot
                 % just immediately applies them to random pieces).
@@ -373,6 +414,7 @@ while 1
             pturnmoves = pturnmoves - 1;
         end
 
+        % **** END OF CYCLE ****
         % Toggle turn, increment enigma turns, reset turn moves.
         pturnmoves = 1;
         pturn = ~pturn;
@@ -436,7 +478,9 @@ while 1
     % Place appropriate cursor and overwrite.
     kbrel = applykb(kbrel, dir);
     kboff = rel2abs(kbrel, [2,0], 2);
-    if moverem
+    if debugframe
+        kbspr = cursorDebug(circ((~isempty(debugTo) && ~isempty(debugFrom)) + 2, 1, 2));
+    elseif moverem
         kbspr = cursorOpen(kbframe + 1);
     else
         kbspr = cursorClosed(kbframe + 1);
@@ -446,13 +490,23 @@ while 1
 
 
     % Overwrite layer 4 with enigma marks.
-    eqs = exti(cb.equery(), 2);
+    eqs = [ exti(cb.equery(1), 2), exti(cb.equery(2), 2) ];
 
     if ~isempty(eqs)
         for i = 1:length(eqs)
             layer4 = mow(layer4, enigmaMark, eqs{i} + [2,0]);
         end
     end
+
+    % Overwrite layer 4 again with dmove marks and clear.
+    if ~isempty(debugFrom)
+        layer4 = mow(layer4, markerDebug, debugFrom + [2,0]);
+        if ~isempty(debugTo)
+            layer4 = mow(layer4, markerDebug, debugTo + [2,0]);
+        end
+    end
+
+    
 
     % Update display.
     drawScene(game_scene, layer1, layer2, layer3, layer4);
