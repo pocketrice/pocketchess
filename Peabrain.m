@@ -44,7 +44,7 @@ classdef Peabrain < handle
             % If any consuming moves, prioritize. Same as above.
             cmoves = cb.cpmoves(2);
 
-            if ~isempty(unwrap(cmoves))
+            if ~isempty(unwrap(cmoves, 1))
                 cmove = cmoves{1};
                 oldpos = cmove{1};
                 newpos = cmove{2};

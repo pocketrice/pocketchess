@@ -344,7 +344,7 @@ classdef ChessBoard < handle
         %           = ChessPiece
 
         function item = get(obj, pos)
-            pos = unflat(pos, 8);
+            pos = unflat(unwrap(pos, 1), 8);
 
             item = obj.Board{pos(1), pos(2)};
         end
@@ -733,14 +733,14 @@ classdef ChessBoard < handle
                     % For every rmoves, add to movepairs.
                     if ~isempty(rmoves)
                         for rcell = rmoves
-                            mpbuffer.a({tp, unwrap(rcell)});
+                            mpbuffer.a({tp, unwrap(rcell, 1)});
                         end
                     end
                 end
             end
 
             % For all enigma pieces of player...
-            for epcell = exti(obj.equery(player), 2)
+            for epcell = unwrap(exti(obj.equery(player), 2), 1);
                 % Get all evmoves
                 ep = epcell{1};
                 evmoves = obj.evmoves(ep);
@@ -748,7 +748,7 @@ classdef ChessBoard < handle
                 % For every evmoves, add to movepairs.
                 if ~isempty(evmoves)
                     for ecell = emoves
-                        mpbuffer.a({ep, unwrap(ecell)});
+                        mpbuffer.a({ep, unwrap(ecell, 1)});
                     end
                 end
             end
@@ -1003,7 +1003,7 @@ classdef ChessBoard < handle
 
                         % Add if unoccupied or is opponent
                         for move = absMoves
-                            emove = unwrap(move);
+                            emove = unwrap(move, 1);
                             if (obj.iserel(emove) || obj.isoppo(emove, player))
                                 vq.enq(emove);
                             end

@@ -60,7 +60,6 @@ cardNum = 41:50;
 cbSelBlack = 83;
 cbSelWhite = 84;
 effPaneClock = 62;
-effPaneWarn = 93;
 
 % [ 1, 2 ]
 effPaneNum = [ 63, 64 ];
@@ -86,7 +85,8 @@ moveEnigma = [ 95, 94 ];
 moveCheck = [ 97, 96 ];
 
 cursorDebug = [ 61, 51 ];
-markerDebug = 34;
+markerDebugA = 34;
+markerDebugB = 93;
 
 % [ dvi1, dvi2 ]
 dviEx = [ 91, 92 ];
@@ -462,13 +462,13 @@ while 1
         end
 
 
-        if ~isempty(unwrap(kfvmoves))
+        if ~isempty(unwrap(kfvmoves, 1))
             for vmove = kfvmoves
                 layer3 = mow(layer3, sprValid, vmove{1} + [2,0]);
             end
         end
 
-        if ~isempty(unwrap(kfevmoves))
+        if ~isempty(unwrap(kfevmoves, 1))
             for evmove = kfevmoves
                 layer3 = mow(layer3, sprEnigma, evmove{1} + [2,0]);
             end
@@ -500,9 +500,9 @@ while 1
 
     % Overwrite layer 4 again with dmove marks and clear.
     if ~isempty(debugFrom)
-        layer4 = mow(layer4, markerDebug, debugFrom + [2,0]);
+        layer4 = mow(layer4, markerDebugA, debugFrom + [2,0]);
         if ~isempty(debugTo)
-            layer4 = mow(layer4, markerDebug, debugTo + [2,0]);
+            layer4 = mow(layer4, markerDebugB, debugTo + [2,0]);
         end
     end
 

@@ -17,6 +17,6 @@
                 end
 
                 % If no moves that resolve check, then we are in checkmate.
-                result = isempty(unwrap(vmoves));
+                result = isempty(unwrap(vmoves, 1));
             end
         end

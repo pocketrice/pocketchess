@@ -34,7 +34,7 @@ classdef Buffer < handle
             if obj.BufferLen >= obj.BufferSize
                 obj.BufferPool = [ obj.BufferPool, cell(1, obj.BufferSize) ];
                 obj.BufferSize = obj.BufferSize * 2;
-                fprintf("Buffer changed size from %i to %i — you may want to update starting size if this constantly occurs.", obj.BufferSize / 2, obj.BufferSize);
+                fprintf("Buffer changed size from %i to %i — consider new defsize.\n", obj.BufferSize / 2, obj.BufferSize);
             end
         end
 
