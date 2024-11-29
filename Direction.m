@@ -29,6 +29,25 @@ classdef Direction
     end
 
     methods (Static)
+        % "Get all directions"
+        % Handy for checking in all directions in a succinct manner.
+        % 1-4 are TRBL, 5-8 are those skewed 45deg rightward.
+        function arr = dirs(varargin)
+            alldirs = [ Direction.Up, Direction.Right, Direction.Down, Direction.Left, Direction.RightUp, Direction.RightDown, Direction.LeftDown, Direction.LeftUp ];
+
+            if nargin > 0
+                abuffer = Buffer(8);
+
+                for i = varargin
+                    abuffer.a(alldirs(i{1}));
+                end
+
+                arr = unwrap(abuffer.flush(), 1);
+            else
+                arr = alldirs;
+            end
+        end
+
         % "Normalise offset"
         % @requires offset is unit-straight and 2-len
         % Gets corresponding normalised Direction for a particular offset!

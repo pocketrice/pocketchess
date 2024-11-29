@@ -7,6 +7,16 @@
 %
 % nvm ignore all above, it is fixed and i am sad
 %
-function ext = exti(cellarr, col)
-  ext = cellfun(@(i) i{col}, cellarr, 'UniformOutput', false);
+function ext = exti(cellarr, col) 
+  ext = cell(1, length(cellarr));
+
+  for i = 1:length(cellarr)
+    item = cellarr{i};
+    
+    if iscell(item)
+      ext{i} = item{col};
+    else
+      ext{i} = item(col);
+    end
+  end
 end

@@ -5,7 +5,11 @@ function post = puniq(pre)
   ind = 1;
 
   while ind <= length(post)
-    pi = post(ind);
+    if iscell(post)
+      pi = post{ind};
+    else
+      pi = post(ind);
+    end
 
     % Note: dupe index has to be shifted back to account for hiding n
     % items.

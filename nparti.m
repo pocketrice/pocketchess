@@ -5,7 +5,7 @@ function [front, back] = nparti(vec, parti)
   front = Buffer(bs);
   back = Buffer(bs);
 
-  for item = unwrap(vec)
+  for item = unwrap(vec, 1)
     if item >= parti
       front.a(item);
     else

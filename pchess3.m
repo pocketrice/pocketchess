@@ -1,10 +1,16 @@
 % *************************** NOTE *******************************
 % retro_chess.png is a custom spritesheet and must be imported.
 % ****************************************************************
- global BlackBishop BlackPawn BlackKnight;
+% Clear memory.
+clearvars -global
+clearvars variables
+clear
+
+global BlackBishop BlackPawn BlackKnight;
+
 
 % Instantiate game scene.
-game_scene = betterGameEngine('retro_chess.png', 16, 16, 4, [67, 55, 65], 1);
+game_scene = betterGameEngine('retro_chess.png', 16, 16, 4, [67, 55, 65], false);
 
 % Cache sound effects.
 sfx_move = game_scene.cachesound("audio/scrolle.wav");
@@ -121,7 +127,7 @@ kfcurr = [0,0];
 
 % Chessboard and chessbot
 cb = ChessBoard();
-bot = ChessBot(cb);
+bot = ChessBot(cb, 0.1);
 
 % Create enigma spot and set enigma count
 enigspace = randget(cb.aquery());
@@ -160,7 +166,7 @@ row7 = [ nspace(na, 12), noData, nspace(na, 4) ];
 layer2 = mow(layer2, row7, [6,0]);
 
 % Auto overwrites for layer 2.
-layer2 = mow(layer2, cb.correspond(@pieceMapper), [3,1]);
+layer2 = mow(layer2, cb.correspond(@repMapper), [3,1]);
 
 % =====================
 
@@ -206,6 +212,12 @@ while 1
                         game_scene.sound(sfx_scan);
                     end
                     kbframe = 0;
+                end
+
+                if debugframe
+                    game_scene.sound(sfx_scan);
+                    debugFrom = [];
+                    debugTo = [];
                 end
             case 'tab'
                 % Bloc if kfcurr wasn't updated (empty).
@@ -426,7 +438,7 @@ while 1
     layer1 = mow(layer1, pfill(enigcount, 3, enigmaHUD(2), enigmaHUD(1)), [0,15]);
 
     % Update layer2 board
-    layer2 = mow(layer2, cb.correspond(@pieceMapper), [3,1]);
+    layer2 = mow(layer2, cb.correspond(@repMapper), [3,1]);
 
     % Create enigma if needed
     if isempty(enigspace) && eturn > 6 && randp(4)
