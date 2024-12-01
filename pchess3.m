@@ -292,7 +292,7 @@ while 1
                             end
 
                             % Move piece and play sound; decrement turn moves
-                            if (~iseabs(cb.pmove(kfcurr, kbrel)))
+                            if ~iseabs(cb.pmove(kfcurr, kbrel))
                                 game_scene.sound(sfx_cap);
                             else
                                 game_scene.sound(sfx_sdown);
@@ -360,7 +360,7 @@ while 1
                     case 1
                         % TODO: use mscore?
                     case 0
-                        if has(cb.vmoves(debugFrom), debugTo)
+                        if has(cb.vmoves(debugFrom, 1), debugTo)
                             oldb = debugFrom;
                             newb = debugTo;
                         else

@@ -9,7 +9,7 @@ function post = unwrap(pre, isstrict)
        post = post{1};
   end
 
-  if isstrict
+  if nargin == 2 && isstrict
        if iscell(post) && all(cellfun(@(i) isscalar(i), post)) && isstype(post)
          post = [post{:}]; % Don't use cell2mat b/c is intended for doubles instead; use cellarr expansion and array collection [{n:}].
        elseif isempty(post)

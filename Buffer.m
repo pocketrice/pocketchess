@@ -46,7 +46,7 @@ classdef Buffer < handle
 
             obj.cbin();
 
-            obj.BufferPool{obj.BufferLen + 1} = item;
+            obj.BufferPool{obj.BufferLen + 1} = unwrap(item, 1);
             obj.BufferLen = obj.BufferLen + 1;
         end
 
@@ -65,6 +65,10 @@ classdef Buffer < handle
         % The buffer shouldn't be used after flushing.
         % For regular array, simply cell2mat the result.
         function cellarr = flush(obj)
+            if obj.FlushFlag
+                error("Buffer flushed and cannot be used.");
+            end
+            
             cellarr = obj.BufferPool(1:obj.BufferLen);
 
             obj.BufferPool = {};

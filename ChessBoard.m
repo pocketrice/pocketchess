@@ -526,7 +526,7 @@ classdef ChessBoard < handle
         % rather than just 1 piece.
         function movepairs = cpmoves(obj, player)
             types = [ PieceType.Pawn, PieceType.Knight, PieceType.King, PieceType.Bishop, PieceType.Queen, PieceType.Rook ];
-            mpbuffer = Buffer(50);
+            mpbuffer = Buffer(20);
 
             % For every piece type...
             for type = types
@@ -610,18 +610,18 @@ classdef ChessBoard < handle
         % Gets indices of vmoves that are moves that consume a piece.
         % Handy for check checking or ChessBot move priority.
         function moves = cmoves(obj, pos)
-            mbuffer = Buffer(30);
+            mbuffer = Buffer(5);
 
             piece = obj.get(pos);
 
             % Check if not empty.
             if ~iseabs(piece)
                 player = piece.Player;
-
+                
                 allmoves = [ obj.vmoves(pos), obj.evmoves(pos) ];
 
                 for i = 1:length(allmoves)
-                    move = allmoves{i};
+                    move = unwrap(allmoves{i});
 
                     if obj.isoppo(move, player)
                         mbuffer.a(move);
@@ -647,7 +647,7 @@ classdef ChessBoard < handle
                 % For every position get every vmoves...
                 for tpcell = typepos
                     tp = tpcell{1};
-                    vmoves = obj.vmoves(tp);
+                    vmoves = obj.vmoves(tp, 1);
 
                     % For every cmoves, add to movepairs.
                     if ~isempty(vmoves)
@@ -710,7 +710,7 @@ classdef ChessBoard < handle
                 submoves = [];
             else
                 % Get all valid moves
-                submoves = obj.vmoves(pos);
+                submoves = obj.vmoves(pos, 1);
 
                 % Get player of piece @ position
                 player = obj.get(pos).Player;
@@ -718,7 +718,7 @@ classdef ChessBoard < handle
 
                 % Remove any moves that won't resolve check
                 for i = length(submoves):-1:1
-                    rm = submoves{i};
+                    rm = unwrap(submoves{i});
 
                     if ~obj.isresmove(pos, rm, player)
                         submoves(i) = [];
@@ -757,7 +757,7 @@ classdef ChessBoard < handle
         function movepairs = rpmoves(obj, player)
             types = [ PieceType.Pawn, PieceType.Knight, PieceType.Bishop, PieceType.Rook, PieceType.Queen, PieceType.King ];
             
-            mpbuffer = Buffer(75);
+            mpbuffer = Buffer(40);
 
             % For every piece type...
             for type = types
@@ -783,7 +783,7 @@ classdef ChessBoard < handle
             for epcell = exti(obj.equery(player), 2)
                 ep = unwrap(epcell, 1);
                 % Get all evmoves
-                evmoves = obj.evmoves(ep);
+                evmoves = obj.evmoves(ep)
 
                 % For every evmoves, add to movepairs.
                     for ecell = evmoves
@@ -836,44 +836,29 @@ classdef ChessBoard < handle
         %                                        absolute indices. You can
         %                                        still loop through and use
         %                                        them!
+        %
+        % The NEW prio (performance) parameter determines which aspects to
+        % skip (this is primarily regarding speeding up the AI; imperative
+        % player moves should be left at prio 1).
+        %
+        % 1 -> Calculates all (castling and en passant).
+        % 2 -> Skips castling and en passant. Default.
+        % 3 -> Skips pawns, castling, and en passant.
 
-        function moves = vmoves(obj, pos)
+        function moves = vmoves(obj, pos, prio)
+            % Set prio if not passed.
+            if nargin < 3
+                prio = 2;
+            end
+
             % Get chess piece object
             piece = obj.get(unflat(pos, 8));
 
-            % This is a queue, which stores items dynamically. A regular
-            % array can't change size so this makes things faster. All you
-            % have to know is to add an item use q.enq(x) and to remove an
-            % item use q.deq(x).
-            %
-            % q.enqa(x), or "enqueue all" lets you pass in an array of
-            % items to be added.
-            %
-            % The queue removes the oldest items first.
-            %
-            % To turn it back into an array just use q.vec().
-            %
-            % q = Queue(0);      <-- when creating the queue tell it what
-            %                        type of item you are storing (in this
-            %                        case just single #s)
-            %
-            % q.enq(5);          <-- the queue is now [5]
-            % q.enq(4);          <-- the queue is now [4, 5]
-            % q.enq(3);          <-- the queue is now [3, 4, 5]
-            % q.enqa([2,1,0]);   <-- the queue is now [0, 1, 2, 3, 4, 5]
-            %
-            % item1 = q.deq();   <-- the queue is now [0, 1, 2, 3, 4]; item1 is 5
-            % item2 = q.deq();   <-- the queue is now [0, 1, 2, 3]; item2 is 4
-            %
-            % moves = q.vec();   <-- moves = [0,1,2,3] in array form
-            % q.clear();         <-- the queue is now []
-            %
-
-            %
-            % In this case the queue stores index pairs (so something like
-            % [x,y]) so I tell the queue that using [0,0].
-            %
-            vq = Queue([0,0]);
+            % This is a buffer — this is more efficient than the original
+            % Queue which had to resize every time which was very costly.
+            % Increasing priority takes a larger initial cost to avoid
+            % resizing as much as possible; normally we risk a lil.
+            bfr = Buffer(clamp(10 * prio, 15, 30));
 
             % If no piece present, skip all checks.
             if ~iseabs(piece)
@@ -882,61 +867,65 @@ classdef ChessBoard < handle
                 % Check all potential moves based on piece type.
                 switch (piece.Type)
                     case PieceType.Pawn
-                        % Move forward 1 space (## target is empty)
-                        move_fw1 = rel2abs(pos, [1,0], player);
+                        if prio < 3
+                            % Move forward 1 space (## target is empty)
+                            move_fw1 = rel2abs(pos, [1,0], player);
 
-                        if (valabs(move_fw1) && obj.iserel(move_fw1))
-                            vq.enq(move_fw1);
-                        end
-
-                        % Move forward 2 spaces (## pure-flagged, target is empty and path unobstructed)
-                        if piece.FlagPure
-                            move_fw2 = rel2abs(pos, [2,0], player);
-
-                            if (valabs(move_fw2) && obj.isuno(pos, move_fw2))
-                                vq.enq(move_fw2);
+                            if (valabs(move_fw1) && obj.iserel(move_fw1))
+                                bfr.a(move_fw1);
                             end
-                        end
 
-                        % Diagornal 1 space (## target occupied by opponent)
-                        % + en passant (## pawn on 1 row into opponent, prior
-                        % turn opponent pawn 2-hopped to horizontal adjacent)
-                        
-                        moves_diag = { [1,1], [1,-1] };
+                            % Move forward 2 spaces (## pure-flagged, target is empty and path unobstructed)
+                            if piece.FlagPure
+                                move_fw2 = rel2abs(pos, [2,0], player);
 
-                        % Filter invalid moves (normally this would be
-                        % implicitly done via valabs check, but we need to
-                        % always check diagonals for en passant now.
-                        moves_diag = moves_diag(cellfun(@(m) valrel(pos, m, player), moves_diag));
+                                if (valabs(move_fw2) && obj.isuno(pos, move_fw2))
+                                    bfr.a(move_fw2);
+                                end
+                            end
 
-                        for i = 1:length(moves_diag)
-                            relmove = moves_diag{i};
+                            % Diagornal 1 space (## target occupied by opponent)
+                            % + en passant (## pawn on 1 row into opponent, prior
+                            % turn opponent pawn 2-hopped to horizontal adjacent)
 
-                            % Absolute conversion
-                            absmove = rel2abs(pos, relmove, player);
-                            
-                            
-                            % En passant row for your piece
-                            enp_row = 3 + player;
+                            moves_diag = { [1,1], [1,-1] };
 
-                            % En passant's other piece.
-                            enp_oppo = obj.get(rel2abs(pos, [0, relmove(2)], player));
+                            % Filter invalid moves (normally this would be
+                            % implicitly done via valabs check, but we need to
+                            % always check diagonals for en passant now.
+                            moves_diag = moves_diag(cellfun(@(m) valrel(pos, m, player), moves_diag));
 
-                            % Verbose/one-liner for compactness. Checks if
-                            % move itself is valid, then if either opponent
-                            % or [EN PASSANT CONDITIONS] add.
+                            for i = 1:length(moves_diag)
+                                relmove = moves_diag{i};
+                                
+                                if prio < 2
+                                    % Absolute conversion
+                                    absmove = rel2abs(pos, relmove, player);
 
-                            % Note that ensuring enp_row guarantees
-                            % enp_oppo is valid (skipping a valrel) but we
-                            % do still need to check emptiness hence var
-                            % separation.
 
-                            % o/ hiya--! you actually don't need to check if
-                            % there is a piece to capture or not... since a
-                            % 2-hop requires empty space!
-                            
-                            if valabs(absmove) && (obj.isoppo(absmove, player) || (pos(1) == enp_row && ~iseabs(enp_oppo) && enp_oppo.Type == PieceType.Pawn && enp_oppo.FlagTemp))
-                                vq.enq(absmove);
+                                    % En passant row for your piece
+                                    enp_row = 3 + player;
+
+                                    % En passant's other piece.
+                                    enp_oppo = obj.get(rel2abs(pos, [0, relmove(2)], player));
+
+                                    % Verbose/one-liner for compactness. Checks if
+                                    % move itself is valid, then if either opponent
+                                    % or [EN PASSANT CONDITIONS] add.
+
+                                    % Note that ensuring enp_row guarantees
+                                    % enp_oppo is valid (skipping a valrel) but we
+                                    % do still need to check emptiness hence var
+                                    % separation.
+
+                                    % o/ hiya--! you actually don't need to check if
+                                    % there is a piece to capture or not... since a
+                                    % 2-hop requires empty space!
+
+                                    if valabs(absmove) && (obj.isoppo(absmove, player) || (prio == 1 && pos(1) == enp_row && ~iseabs(enp_oppo) && enp_oppo.Type == PieceType.Pawn && enp_oppo.FlagTemp))
+                                        bfr.a(absmove);
+                                    end
+                                end
                             end
                         end
 
@@ -944,7 +933,7 @@ classdef ChessBoard < handle
                         % All spaces in 1-space radius (## target
                         % unoccupied or is opponent)
                         for dir = Direction.dirs
-                            vq.enqa(obj.iuntilmax(pos, dir, 1, player));
+                            bfr.aa(obj.iuntilmax(pos, dir, 1, player));
                         end
 
                         % Castling (## king & rook pure-flagged,
@@ -956,7 +945,7 @@ classdef ChessBoard < handle
 
                         % If king is not purity-flagged, skip all. This
                         % doesn't mean we can apply the king's position.
-                        if piece.FlagPure
+                        if prio < 2 && piece.FlagPure
                             moves_castle = { [0,-2], [0,2] };
 
                             for i = 1:length(moves_castle)
@@ -987,7 +976,7 @@ classdef ChessBoard < handle
                                         % (c) Add if king not checked on all
                                         % spots.
                                         if all(cellfun(@(p) obj.isresmove(pos, p, player), edgepath))
-                                            vq.enq(absmove);
+                                            bfr.a(absmove);
                                         end
                                     end
                                 end
@@ -998,19 +987,19 @@ classdef ChessBoard < handle
                         % All spaces on horizontal/vertical until
                         % obstructed
                         for dir = Direction.dirs(1:4)
-                            vq.enqa(obj.iuntil(pos, dir, player));
+                            bfr.aa(obj.iuntil(pos, dir, player));
                         end
 
                     case PieceType.Bishop
                         % All spaces on diagonals until obstructed
                         for dir = Direction.dirs(5:8)
-                            vq.enqa(obj.iuntil(pos, dir, player));
+                            bfr.aa(obj.iuntil(pos, dir, player));
                         end
 
                     case PieceType.Queen
                         % All spaces on hor/vert/diagonals until obstructed
                         for dir = Direction.dirs
-                            vq.enqa(obj.iuntil(pos, dir, player));
+                            bfr.aa(obj.iuntil(pos, dir, player));
                         end
 
                     case PieceType.Knight
@@ -1027,14 +1016,14 @@ classdef ChessBoard < handle
                         for move = absMoves
                             emove = unwrap(move, 1);
                             if (obj.iserel(emove) || obj.isoppo(emove, player))
-                                vq.enq(emove);
+                                bfr.a(emove);
                             end
                         end
                 end
             end
 
             % Convert queue to vector.
-            moves = vq.vec();
+            moves = bfr.flush();
         end
 
         % "Enigma valid moves"
@@ -1045,7 +1034,7 @@ classdef ChessBoard < handle
 
             if ~iseabs(piece)
                 enigmas = vdecomp(piece.Enigmas);
-                vq = Queue([0,0]);
+                bfr = Buffer(20);
 
                 for i = 1:length(enigmas)
                     e = enigmas{i};
@@ -1059,7 +1048,7 @@ classdef ChessBoard < handle
                             move_bt = rel2abs(pos, [-1,0], player);
 
                             if valabs(move_bt) && obj.iserel(move_bt)
-                                vq.enq(move_bt);
+                                bfr.a(move_bt);
                             end
                         case EnigmaType.Sidewind % ## unoccupied [2]
                             % All possible moves
@@ -1073,7 +1062,7 @@ classdef ChessBoard < handle
                                 move = rel2abs(pos, p{1}, player);
 
                                 if valabs(move) && obj.iserel(move)
-                                    vq.enq(move);
+                                    bfr.a(move);
                                 end
                             end
                         case EnigmaType.Protractor % ## unoccupied or opponent [4]
@@ -1084,7 +1073,7 @@ classdef ChessBoard < handle
                                 move = rel2abs(pos, p{1}, player);
 
                                 if valabs(move) && (obj.iserel(move) || obj.isoppo(move, player))
-                                    vq.enq(move);
+                                    bfr.a(move);
                                 end
                             end
                         case EnigmaType.Missile % ## has opponent in n radius [3]
@@ -1095,7 +1084,7 @@ classdef ChessBoard < handle
                                 rs = rscell{1};
 
                                 if obj.isoppo(rs, player)
-                                    vq.enq(rs);
+                                    bfr.a(rs);
                                 end
                             end
                         case EnigmaType.Panick % ## is checked, unoccupied or opponent  [3]
@@ -1110,7 +1099,7 @@ classdef ChessBoard < handle
                                 % More efficient to only query once and
                                 % check if same player.
                                 if ischecked && valabs(move) && isplayer(obj.get(move), player)
-                                    vq.enq(move);
+                                    bfr.a(move);
                                 end
                             end
                         case EnigmaType.Magnesis % ## nothing to do [3]
@@ -1118,7 +1107,7 @@ classdef ChessBoard < handle
                     end
                 end
 
-                moves = vq.vec();
+                moves = bfr.flush();
             else
                 moves = [];
             end
@@ -1247,7 +1236,7 @@ classdef ChessBoard < handle
         %                             variable.
         %
         function capture = pmove(obj, oldPos, newPos)
-            offset = newPos - oldPos;
+            offset = oldPos - newPos;
 
             % Enforce precondition A
             if obj.iserel(oldPos)
@@ -1262,26 +1251,6 @@ classdef ChessBoard < handle
                 % Enforce precondition B
                 if ~iseabs(capture) && player == capture.Player
                     error("Cannot pmove to space with piece of same player!");
-                end
-
-                obj.Board{newPos(1), newPos(2)} = piece;
-                obj.Board{oldPos(1), oldPos(2)} = 0;
-              
-                % Nullify purity
-                piece.FlagPure = 0;
-
-                % If pawn 2-hop, temp-flag.
-                if piece.Type == PieceType.Pawn && psame(rel2abs(oldPos, [2,0], player), newPos)
-                    piece.FlagTemp = 1;
-                end
-
-                % If pawn en passant (diagonal & no capture), remove passed pawn.
-                if piece.Type == PieceType.Pawn && iseabs(capture) && (psame(rel2abs(oldPos, [1,1], player), newPos) || psame(rel2abs(oldPos, [1,-1], player), newPos))
-                    % Since pawn has already moved to newPos, just remove the
-                    % piece directly down from it.
-                    obj.Board{newPos(1) - 1, newPos(2)} = 0;
-                    
-                    disp("EN PASSANT");
                 end
 
                 % If king castle (king moved L/R more than 1 space w/out
@@ -1313,9 +1282,29 @@ classdef ChessBoard < handle
                     % Move the rook right next to the king! Note how we can
                     % safely flip direction without fear as we guaranteed
                     % it L/R.
-                    obj.pmove(crook, newPos - cdir.Offset);
+                    obj.pmove(unwrap(crook, 1), newPos + cdir.Offset);
 
                     disp("CASTLE");
+                end
+
+                obj.Board{newPos(1), newPos(2)} = piece;
+                obj.Board{oldPos(1), oldPos(2)} = 0;
+              
+                % Nullify purity
+                piece.FlagPure = 0;
+
+                % If pawn 2-hop, temp-flag.
+                if piece.Type == PieceType.Pawn && psame(rel2abs(oldPos, [2,0], player), newPos)
+                    piece.FlagTemp = 1;
+                end
+
+                % If pawn en passant (diagonal & no capture), remove passed pawn.
+                if piece.Type == PieceType.Pawn && iseabs(capture) && (psame(rel2abs(oldPos, [1,1], player), newPos) || psame(rel2abs(oldPos, [1,-1], player), newPos))
+                    % Since pawn has already moved to newPos, just remove the
+                    % piece directly down from it.
+                    obj.Board{newPos(1) - 1, newPos(2)} = 0;
+                    
+                    disp("EN PASSANT");
                 end
 
                 % Update check status
@@ -1408,7 +1397,7 @@ classdef ChessBoard < handle
                 checkmate = false;
                 check = false;
                 kq = obj.kquery();
-                cq = obj.cpmoves(player);
+                %cq = obj.cpmoves(player);
 
                 for r = 1:8
                     for c = 1:8
