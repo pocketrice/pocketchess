@@ -1158,11 +1158,11 @@ classdef ChessBoard < handle
             mtype = mpiece.Type;
             mcap = obj.pmove(oldPos, newPos);
             
-            % +999 for checkmates opponent, +30 for checks opponent
+            % +999 for checkmates opponent, +20 for checks opponent
             if obj.Checks(mplayer) == 2
                 score = score + 999;
             elseif obj.Checks(mplayer) == 1
-                score = score + 30;
+                score = score + 20;
             end
 
             % +50 for castling

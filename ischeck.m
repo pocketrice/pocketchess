@@ -25,16 +25,16 @@ for r = 1:8
 
             % Check if not empty.
             if ~iseabs(piece)
-                player = piece.Player;
-                type = piece.Type;
+                pplayer = piece.Player;
+                ptype = piece.Type;
                 
-                if type ~= PieceType.King
+                if ptype ~= PieceType.King
                     allmoves = [ board.vmoves(pos), board.evmoves(pos) ];
                 else
                     abuffer = Buffer(9);
                     
                     for dir = Direction.dirs
-                        abuffer.aa(board.iuntilmax(pos, dir, 1, player));
+                        abuffer.aa(board.iuntilmax(pos, dir, 1, pplayer));
                     end
 
                     abuffer.aa(board.evmoves(pos));
@@ -45,7 +45,7 @@ for r = 1:8
                 for i = 1:length(allmoves)
                     move = unwrap(allmoves(i), 1);
 
-                    if board.isoppo(move, player)
+                    if board.isoppo(move, pplayer)
                         mbuffer.a(move);
                     end
                 end
