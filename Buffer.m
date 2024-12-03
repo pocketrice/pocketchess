@@ -23,6 +23,16 @@ classdef Buffer < handle
             obj.FFlag = 0;
         end
 
+        % "Get length"
+        function l = len(obj)
+            l = obj.Len;
+        end
+
+        % "Get pool"
+        function p = pool(obj)
+            p = obj.Pool(1:obj.Len);
+        end
+
         % "Expand buffer if needed"
         % If at max length, exponentially increase buffer (x2).
         % Call this prior to adding any items.

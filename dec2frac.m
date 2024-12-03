@@ -17,6 +17,6 @@ function frac = dec2frac(dec)
     end
 
   else
-    frac = string(dec)
+    frac = string(dec);
   end
 end

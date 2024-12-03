@@ -70,15 +70,18 @@ classdef ChessPiece < handle
                 else
                     % Decompile enigmas.
                     edecomp = vdecomp(obj.Enigmas);
-
-                    % Compare counts and set result whether over max or not
-                    % (or permanent).
-                    epair = edecomp{ has(exti(edecomp, 1), enigmatype) };
                     
+                    % Decomp index for enigma type.
+                    eind = has(exti(edecomp, 1), enigmatype);
+
                     if enigmatype.Max == -1
                         result = ~has(obj.Enigmas, enigmatype);
+                    elseif eind ~= 0
+                        % Compare counts and set result whether over max or not
+                        epair = edecomp{eind};
+                        result = epair{2} < enigmatype.Max;
                     else
-                        result = (epair{2} < enigmatype.Max);
+                        result = 1;
                     end
                 end
             end

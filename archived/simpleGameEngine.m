@@ -1,12 +1,25 @@
-% #####################
+% The Simple Game Engine is a class from object-oriented programming.
+% If you are unfamiliar with object oriented programming, here is a quick
+% crash course:
 %
-% betterGameEngine simply makes the SGE a little better.
-% * n-layers for sprites
-% * SFX support
+% Classes are a higher level of organizing programs beyond functions, they
+% group together the functions (called methods) and variables (properties)
+% of whatever it is you are trying to do. When you make a variable (called
+% an object) from a class, it has all the properties from that class
+% bundled together. This mimics how we naturally categorize things in real
+% life. For example, cats are a class of animals, methods are the things a
+% cat can do (e.g. pounce, meow, etc), properties describe a cat (e.g.
+% color, age, location, etc), and objects  are individual cats (where each
+% of the properties has a set value).
 %
-% #####################
+% The one extra bit of syntax you need to understand what's going on below
+% is how to access properties of an object:
+% Property "prop" of object "obj" is "obj.prop"
 
-classdef betterGameEngine < handle
+% The simpleGameEngine class inherets from the handle class because we
+% want the game objects to be updated by their methods, specifically
+% my_figure and my_image
+classdef simpleGameEngine < handle
     properties
         sprites = {}; % color data of the sprites
         sprites_transparency = {}; % transparency data of the sprites
@@ -14,14 +27,12 @@ classdef betterGameEngine < handle
         sprite_height = 0;
         background_color = [0, 0, 0];
         zoom = 1;
-        mute = 0;
         my_figure; % figure identifier
-        my_image;  % image data 
-        sfxs;
+        my_image;  % image data
     end
     
     methods
-        function obj = betterGameEngine(sprites_fname, sprite_height, sprite_width, zoom, background_color, is_mute)
+        function obj = simpleGameEngine(sprites_fname, sprite_height, sprite_width, zoom, background_color)
             % simpleGameEngine
             % Input: 
             %  1. File name of sprite sheet as a character array
@@ -43,8 +54,7 @@ classdef betterGameEngine < handle
             if nargin > 3
                 obj.zoom = zoom;
             end
-            obj.sfxs = {};
-
+            
             % read the sprites image data and transparency
             [sprites_image, ~, transparency] = imread(sprites_fname);
             
@@ -76,32 +86,9 @@ classdef betterGameEngine < handle
                     obj.sprites_transparency{end+1} = transparency(r_min:r_max,c_min:c_max,:);
                 end
             end
-
-            obj.mute = is_mute;
         end
         
-        function ind = cachesound(obj, uri)
-            ind = length(obj.sfxs) + 1;
-            [adata, asr] = audioread(uri);
-    
-            obj.sfxs{ind} = audioplayer(adata, asr);
-        end
-
-
-
-        function sound(obj, ind)
-            try
-                if ~obj.mute
-                    play(obj.sfxs{ind});
-                end
-            catch ME
-                fprintf("SFX %i error; skipping.\n%s", ind, ME);
-            end
-        end
-            
-
-
-        function drawScene(obj, background_sprites, varargin)
+        function drawScene(obj, background_sprites, foreground_sprites)
             % draw_scene 
             % Input: 
             %  1. an SGE scene, which gains focus
@@ -113,14 +100,11 @@ classdef betterGameEngine < handle
             
             scene_size = size(background_sprites);
             
-            % Error checking: make sure the bg and layers are the same size
-            if ~all(cellfun(@(layer) all(size(layer) == scene_size), varargin))
-                msg = sprintf('Background (%i x %i) and n-layer matrices of scene must be same size.\n', scene_size);
-                for i = 1:length(varargin)
-                    msg = [msg sprintf('\tLayer %i is (%i x %i)\n', i, size(varargin{i}))];
+            % Error checking: make sure the bg and fg are the same size
+            if nargin > 2
+                if ~isequal(scene_size, size(foreground_sprites))
+                    error('Background and foreground matrices of scene must be the same size.')
                 end
-
-                error(msg);
             end
             
             num_rows = scene_size(1);
@@ -137,13 +121,8 @@ classdef betterGameEngine < handle
                     % Save the id of the current sprite(s) to make things
                     % easier to read later
                     bg_sprite_id = background_sprites(tile_row,tile_col);
-
-                    % Save id of layers
-                    layer_ids = cell(length(varargin));
-
-                    for i = 1:length(varargin)
-                        layer = varargin{i};
-                        layer_ids{i} = layer(tile_row,tile_col);
+                    if nargin > 2
+                        fg_sprite_id = foreground_sprites(tile_row,tile_col);
                     end
                     
                     % Build the tile layer by layer, starting with the
@@ -159,10 +138,10 @@ classdef betterGameEngine < handle
                     tile_data = obj.sprites{bg_sprite_id} .* (obj.sprites_transparency{bg_sprite_id}/255) + ...
                         tile_data .* ((255-obj.sprites_transparency{bg_sprite_id})/255);
                     
-                    % If needed, layer on n-sprites
-                    for i = 1:length(varargin)
-                        tile_data = obj.sprites{layer_ids{i}} .* (obj.sprites_transparency{layer_ids{i}}/255) + ...
-                            tile_data .* ((255-obj.sprites_transparency{layer_ids{i}})/255);
+                    % If needed, layer on the second sprite
+                    if nargin > 2
+                        tile_data = obj.sprites{fg_sprite_id} .* (obj.sprites_transparency{fg_sprite_id}/255) + ...
+                            tile_data .* ((255-obj.sprites_transparency{fg_sprite_id})/255);
                     end
                     
                     % Calculate the pixel location of the top-left corner

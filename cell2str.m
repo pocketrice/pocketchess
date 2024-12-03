@@ -1,19 +1,30 @@
-% "Cell to string"
-% Converts cell array to string by concatenating each stringified item.
-% Take note! This preserves rows.
+% "Matrix to raw string"
+% Converts an array to (raw) string by concatenating each stringified item.
+% This is different from mat2str as this removes any unnecessary spaces and
+% delimiters.
+%
+% Take note! This preserves rows. Recursive!
 %
 % Pass in a delimiter (optional).
-function post = cell2str(pre, dlr)
+%
+function post = mat2raw(pre, dlr)
     if nargin < 2
         dlr = '';
     end
 
-    csize = size(pre);
-    post = strings(csize(1), 1);
+    % Unwrap pre.
+    pre = unwrap(pre, 1);
 
-    for i = 1:csize(1)
-        for j = 1:csize(2)
-            post(i) = post(i) + string(pre{i,j}) + dlr;
+    if isscalar(pre)
+        post = string(unwrap(pre,1));
+    else
+        csize = size(pre);
+        post = strings(csize(1), 1);
+
+        for i = 1:csize(1)
+            for j = 1:csize(2)
+                post(i) = post(i) + mat2raw(pre(i,j), dlr) + dlr;
+            end
         end
     end
 end

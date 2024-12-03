@@ -1,6 +1,6 @@
 function post = fenMapper(pre)
     if iseabs(pre)
-        error("Cannot use SAN mapper with empty spaces — please use ChessBoard.query rather than looping through all.");
+        error("Cannot use FEN mapper with empty spaces — please use ChessBoard.query rather than looping through all.");
     end
 
     switch pre.Type

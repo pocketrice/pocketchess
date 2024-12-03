@@ -53,12 +53,12 @@ classdef PGN < handle
             obj.Board = cb;
             obj.MoveText = Buffer(40);
 
-            obj.TagEvent = 'pcg #' + string(java.util.UUID.randomUUID);
+            obj.TagEvent = 'pcg ' + string(java.util.UUID.randomUUID);
             obj.TagSite = '?';
             obj.TagDate = '??.??.??';
             obj.TagRound = 1;
-            obj.TagWhite = 'Player, White';
-            obj.TagBlack = 'Player, Black';
+            obj.TagWhite = 'White';
+            obj.TagBlack = 'Black';
             obj.TagResult = [0, 0];
 
             obj.TagAnnotator = '@pocketrice';
@@ -134,6 +134,37 @@ classdef PGN < handle
             end
         end
 
+        % "Set annotator"
+        function setannot(obj, name)
+            obj.TagAnnotator = name;
+        end
+
+        % "Set round"
+        function setround(obj, round)
+            if ~isnumeric(round) || floor(round) ~= round
+                error("PGN round must be an integer!");
+            end
+
+            obj.TagRound = round;
+        end
+
+        % "Set event"
+        function setevent(obj, event)
+            obj.TagEvent = event;
+        end
+
+        % "Skip in movetext"
+        % Manually add a skip (--) to the movetext.
+        function smt(obj, comm, nag)
+            switch nargin
+                case 1
+                    obj.amt([0,0], [0,0]);
+                case 2
+                    obj.amt([0,0], [0,0], 0, comm);
+                case 3
+                    obj.amt([0,0], [0,0], 0, comm, nag);
+            end
+        end
         % "Add to movetext"
         % Adds the move to the movetext, updating other tags as needed
         % (e.g. result if checkmate). For syncing purposes, the PGN's board
@@ -151,15 +182,11 @@ classdef PGN < handle
         % instead of Nf3). This is OK! Parsers still A-OK!! :D
         %
         function amt(obj, oldpos, newpos, cap, comm, nag)
-            if nargin < 6
-                nag = '';
-            end
-
             % If turn skipped, short-circuit.
             if psame(oldpos, newpos)
-                move = '--';
+                move = "--";
             else
-                move = '';
+                move = "";
 
                 % Move data + checkstate
                 % (you may assume oldpos has a piece)
@@ -170,13 +197,13 @@ classdef PGN < handle
                 chst = obj.Board.Checks;
 
                 % Notations for old/new positions, moved piece
-                an_new = PGN.algnot(oldpos);
-                an_old = PGN.algnot(newpos);
+                an_new = PGN.algnot(newpos);
+                an_old = PGN.algnot(oldpos);
                 msan = sanMapper(mpiece);
 
                 % Begin figuring out notation...
                 % ====== CASTLE ======
-                if mtype == PieceType.King && ~has(mpiece.Enigmas, EnigmaType.Panick) && psame(abs(newPos - oldPos), [0,2])
+                if mtype == PieceType.King && ~has(mpiece.Enigmas, EnigmaType.Panick) && psame(abs(newpos - oldpos), [0,2])
                     % Determine which side via seeing closer to which #.
                     % You can safely assume no ambiguity (e.g. no middle,
                     % hopefully).
@@ -185,16 +212,16 @@ classdef PGN < handle
 
                     % Queenside
                     if newpos(2) < blenmid
-                        move = 'O-O-O';
+                        move = "O-O-O";
                         % Kingside
                     else
-                        move = 'O-O';
+                        move = "O-O";
                     end
 
                     % ======= STANDARD MOVE =======
                 else
                     % Add SAN mapping and (explicit) start file
-                    move = move + msan + an_old(1);
+                    move = move + msan + chat(an_old, 1);
 
                     % Add capture marker (if)
                     if ~iseabs(cap)
@@ -202,7 +229,7 @@ classdef PGN < handle
                     end
 
                     % Add end space
-                    move = [ move an_new ];
+                    move = move + an_new;
 
                     % Add check marker (if)
                     switch chst(oplayer)
@@ -218,11 +245,19 @@ classdef PGN < handle
                     obj.TagResult(mplayer) = obj.TagResult(mplayer) + 1;
                 end
             end
+
             % Compile move cellarr
-            mcell = cell(1,3);
-            mcell{1} = move;
-            mcell{2} = "{" + comm + "}";
-            mcell{3} = "$" + nag;
+            mcell = nspace("", 3);
+
+            mcell(1) = move;
+
+            if nargin >= 5 && strlength(comm) ~= 0
+                mcell(2) = "{" + comm + "}";
+            end
+
+            if nargin >= 6
+                mcell(3) = "$" + nag;
+            end
 
             % Add to buffer
             obj.MoveText.a(mcell);
@@ -231,8 +266,8 @@ classdef PGN < handle
         % "Update promo"
         % This should be called immediately after actually promoting a
         % piece to update the movetext buffer placeholder.
-        function updpromo(obj, type)
-        end
+        % function updpromo(obj, type)
+        % end
 
         % "Compile"
         % Compiles to a valid PGN string. Assumes moves are properly formatted
@@ -251,7 +286,34 @@ classdef PGN < handle
                            '[Result "%s-%s"]\n' ...
                            '[Mode "OTB"]\n' ...
                            '[Annotator "%s"]\n\n'], obj.TagFEN, obj.TagEvent, obj.TagSite, obj.TagDate, obj.TagTime, obj.TagRound, obj.TagWhite, obj.TagBlack, dec2frac(obj.TagResult(1)), dec2frac(obj.TagResult(2)), obj.TagAnnotator);
-           
+
+            
+            movetext = obj.MoveText.flush();
+
+            % Evenify length (+1 if odd)
+            if isodd(length(movetext))
+                mtlen = length(movetext) + 1;
+            else
+                mtlen = length(movetext);
+            end
+            
+            % Add each turn
+            for i = 1:2:mtlen
+                mtstr = string(ceil(i/2)) + '.';
+
+                % Add white move
+                mtstr = mtstr + mat2raw(movetext{i}, ' ') + ' ';
+
+                % Add black move (if present)
+                if i + 1 <= length(movetext)
+                    mtstr = mtstr + mat2raw(movetext{i+1}, ' ') + ' ';
+                end
+
+                str = str + mtstr;
+            end 
+
+            % Trim extra spaces
+            str = trimspace(str);
         end
     end
 
@@ -292,11 +354,11 @@ classdef PGN < handle
 
             if ~isskip7 && isscalar(board.rpmoves(mplayer))
                 nag = 7;
-            elseif mscore > 30 % (30, ∞) !!
+            elseif mscore > 40 % (40, ∞) !!
                 nag = 3;
-            elseif mscore > 20 % (20, 40] !
+            elseif mscore > 25 % (25, 40] !
                 nag = 1;
-            elseif mscore > 0 % (0, 20] !?
+            elseif mscore > 0 % (0, 25] !?
                 nag = 5;
             elseif mscore > -10 % (-10, 0] ?!
                 nag = 6;

@@ -1,16 +1,10 @@
 % *************************** NOTE *******************************
 % retro_chess.png is a custom spritesheet and must be imported.
 % ****************************************************************
-% Clear memory.
-clearvars -global
-clearvars variables
-clear
-
-global BlackBishop BlackPawn BlackKnight;
-
+ global BlackBishop BlackPawn BlackKnight;
 
 % Instantiate game scene.
-game_scene = betterGameEngine('retro_chess.png', 16, 16, 4, [67, 55, 65], true);
+game_scene = betterGameEngine('retro_chess.png', 16, 16, 4, [67, 55, 65], 1);
 
 % Cache sound effects.
 sfx_move = game_scene.cachesound("audio/scrolle.wav");
@@ -66,6 +60,7 @@ cardNum = 41:50;
 cbSelBlack = 83;
 cbSelWhite = 84;
 effPaneClock = 62;
+effPaneWarn = 93;
 
 % [ 1, 2 ]
 effPaneNum = [ 63, 64 ];
@@ -90,9 +85,8 @@ moveValid = [ 54, 53 ];
 moveEnigma = [ 95, 94 ];
 moveCheck = [ 97, 96 ];
 
-cursorDebug = [ 61, 51 ];
-markerDebugA = 34;
-markerDebugB = 93;
+moveDebug = [ 61, 51 ];
+markerDebug = 34;
 
 % [ dvi1, dvi2 ]
 dviEx = [ 91, 92 ];
@@ -125,12 +119,9 @@ magpos = [0,0];
 kbrel = [4,4];
 kfcurr = [0,0];
 
-% Chessboard, chessbot, PGN
+% Chessboard and chessbot
 cb = ChessBoard();
-bot = ChessBot(cb, 0.1);
-pgn = PGN(cb);
-pgn.apopu();
-
+bot = ChessBot(cb);
 
 % Create enigma spot and set enigma count
 enigspace = randget(cb.aquery());
@@ -169,7 +160,7 @@ row7 = [ nspace(na, 12), noData, nspace(na, 4) ];
 layer2 = mow(layer2, row7, [6,0]);
 
 % Auto overwrites for layer 2.
-layer2 = mow(layer2, cb.correspond(@repMapper), [3,1]);
+layer2 = mow(layer2, cb.correspond(@pieceMapper), [3,1]);
 
 % =====================
 
@@ -216,12 +207,6 @@ while 1
                     end
                     kbframe = 0;
                 end
-
-                if debugframe
-                    game_scene.sound(sfx_scan);
-                    debugFrom = [];
-                    debugTo = [];
-                end
             case 'tab'
                 % Bloc if kfcurr wasn't updated (empty).
                 if ~cb.iserel(kfcurr)
@@ -242,14 +227,6 @@ while 1
                 pturn = ~pturn;
                 pturnmoves = 1;
                 eturn = eturn + 1;
-                
-                % Manually skip turn in PGN if move still remaining (didn't
-                % move)
-                if moverem
-                    pgn.smt();
-                end
-
-                % Reset moverem.
                 moverem = 1;
 
                 % If still selected after turn ended, unselect.
@@ -303,7 +280,7 @@ while 1
                             end
 
                             % Move piece and play sound; decrement turn moves
-                            if ~iseabs(cb.pgnmove(kfcurr, kbrel, pgn))
+                            if (~iseabs(cb.pmove(kfcurr, kbrel)))
                                 game_scene.sound(sfx_cap);
                             else
                                 game_scene.sound(sfx_sdown);
@@ -371,15 +348,12 @@ while 1
                     case 1
                         % TODO: use mscore?
                     case 0
-                        if has(cb.vmoves(debugFrom, 1), debugTo)
+                        if has(cb.vmoves(debugFrom), debugTo)
                             oldb = debugFrom;
                             newb = debugTo;
                         else
                             [oldb, newb] = bot.nextmove(enigspace);
                         end
-
-                        debugFrom = [];
-                        debugTo = [];
                 end
 
                 % If moved to enigma, "add enigma" (plays sounds, but bot
@@ -411,26 +385,23 @@ while 1
                                 opool(j) = [];
                             end
                         end
-                        
-                        % Pick a random piece from omnipool to add enigma to
-                        % (and roll random valid enigma); if no eligible
-                        % then skip.
-                        if ~isempty(opool)
-                            opiece = randget(opool);
-                            oenigma = randget(opiece{1}.canae());
 
-                            % Add enigma.
-                            game_scene.sound(sfx_enigapp);
-                            pause(0.8);
-                            cb.get(opiece{2}).egadd(oenigma);
-                        end
+                        % Pick a random piece from omnipool to add enigma to
+                        % (and roll random valid enigma)
+                        opiece = randget(opool);
+                        oenigma = randget(opiece{1}.canae());
+
+                        % Add enigma.
+                        game_scene.sound(sfx_enigapp);
+                        pause(0.8);
+                        cb.get(opiece{2}).egadd(oenigma);
                     end
                 end
 
                 % Draw selector to screen, move piece, play sfx
                 pause(0.2);
                 layer2 = mow(layer2, moveEnigma(2), newb + [2,0]);
-                if ~iseabs(cb.pgnmove(oldb, newb, pgn))
+                if ~iseabs(cb.pmove(oldb, newb))
                     game_scene.sound(sfx_cap);
                 else
                     game_scene.sound(sfx_sdown);
@@ -452,7 +423,7 @@ while 1
     layer1 = mow(layer1, pfill(enigcount, 3, enigmaHUD(2), enigmaHUD(1)), [0,15]);
 
     % Update layer2 board
-    layer2 = mow(layer2, cb.correspond(@repMapper), [3,1]);
+    layer2 = mow(layer2, cb.correspond(@pieceMapper), [3,1]);
 
     % Create enigma if needed
     if isempty(enigspace) && eturn > 6 && randp(4)
@@ -488,13 +459,13 @@ while 1
         end
 
 
-        if ~isempty(unwrap(kfvmoves, 1))
+        if ~isempty(unwrap(kfvmoves))
             for vmove = kfvmoves
                 layer3 = mow(layer3, sprValid, vmove{1} + [2,0]);
             end
         end
 
-        if ~isempty(unwrap(kfevmoves, 1))
+        if ~isempty(unwrap(kfevmoves))
             for evmove = kfevmoves
                 layer3 = mow(layer3, sprEnigma, evmove{1} + [2,0]);
             end
@@ -526,9 +497,12 @@ while 1
 
     % Overwrite layer 4 again with dmove marks and clear.
     if ~isempty(debugFrom)
-        layer4 = mow(layer4, markerDebugA, debugFrom + [2,0]);
+        layer4 = mow(layer4, markerDebug, debugFrom + [2,0]);
+        debugFrom = [];
+
         if ~isempty(debugTo)
-            layer4 = mow(layer4, markerDebugB, debugTo + [2,0]);
+            layer4 = mow(layer4, markerDebug, debugTo + [2,0]);
+            debugTo = [];
         end
     end
 
@@ -537,44 +511,10 @@ while 1
     % Update display.
     drawScene(game_scene, layer1, layer2, layer3, layer4);
 
-    if any(cb.Checks == 2)
-        if cb.Checks(2) == 2 % Black checkmated
-            game_scene.sound(sfx_win);
-            pwinner = "White";
-        else % White checkmated
-            game_scene.sound(sfx_gameover);
-            pwinner = "Black";
-        end
-
-        pgn_fpath = input('\n' + pwinner + " wins! Save PGN to... ", 's');
-
-        if ~isblank(pgn_fpath)
-            pgn_fid = fopen(pgn_fpath, 'w');
-
-            pgn_wname = input("White player's name... ", 's');
-            pgn_bname = input("Black player's name... ", 's');
-            pgn_event = input("Event... ", 's');
-        
-            if ~isblank(pgn_wname)
-                pgn.setname(pgn_wname, 1);
-            end
-
-            if ~isblank(pgn_bname)
-                pgn.setname(pgn_bname, 2);
-            end
-
-            if ~isblank(pgn_event)
-                pgn.setevent(pgn_event);
-            end
-
-            fprintf(pgn_fid, "%s", pgn.compile());
-            fclose(pgn_fid);
-
-            fprintf("\n\n. ݁₊ ⊹ . ݁˖ . ݁ Thanks for playing! PGN written to %s. ⟡ ݁₊ .\n", pgn_fpath);
-        else
-            fprintf("\n\n. ݁₊ ⊹ . ݁˖ . ݁ Thanks for playing! PGN paste below ↴ ⟡ ݁₊ .\n\n%s\n", pgn.compile());
-        end
-
+    if cb.Checks(2) == 2 % Black checkmated
+        game_scene.sound(sfx_win);
+    elseif cb.Checks(1) == 2 % White checkmated
+        game_scene.sound(sfx_gameover);
         break;
     end
 end
