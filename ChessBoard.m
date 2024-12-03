@@ -81,7 +81,7 @@ classdef ChessBoard < handle
                  0, 0, 0, 0, 0, 0, 0, 0;
                  0, 0, 0, 0, 0, 0, 0, 0;
                  WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn;
-                 WhiteRook, WhiteKnight, WhiteBishop, WhiteKing, WhiteQueen, WhiteBishop, WhiteKnight, WhiteRook } );
+                 WhiteRook, WhiteKnight, WhiteBishop, WhiteQueen, WhiteKing, WhiteBishop, WhiteKnight, WhiteRook } );
             
              % CHAOS PRESET
               % obj.Board = obj.bset( { BlackRook, BlackKnight, BlackBishop, BlackRook, BlackKing, BlackBishop, BlackKnight, BlackRook;
@@ -147,6 +147,64 @@ classdef ChessBoard < handle
                     end
                 end
             end
+        end
+
+        %
+        % "Forysth-Edwards Notation"
+        % Note this is FEN for only the starting position. Since ChessBoard
+        % does not store any data about the game itself (current player, #
+        % of turns, etc.) it is impossible to get a FEN beyond
+        % initialisation.
+        %
+        % This is mainly handy for PGN and weird formats such as Chess960.
+        %
+        function rep = fen(obj)
+            bsize = size(obj.Board);
+            rbuffer = Buffer(32);
+
+            % Loop through all pieces
+            for i = 1:bsize(1)
+                for j = 1:bsize(2)
+                    piece = obj.get([i,j]);
+                    rlen = rbuffer.Len;
+
+                    % Increment empty space in buffer, otherwise get FEN
+                    % mapping.
+                    if iseabs(piece)
+                        if rlen > 0 && isnumeric(rbuffer.Pool{rlen})
+                            rbuffer.Pool{rlen} = rbuffer.Pool{rlen} + 1;
+                        else
+                            rbuffer.a(1);
+                        end
+                    else
+                        rbuffer.a(fenMapper(piece));
+                    end
+                end
+                
+                % Omit if at last row.
+                if i < bsize(1)
+                    rbuffer.a('/');
+                end
+            end
+
+            % Flush and convert piece cellarr to str.
+            rep = cell2str(rbuffer.flush());
+
+            % Add other flags...
+            % Current turn? (default to White)
+            rep = rep + ' w';
+
+            % Castling availability? (TEMPORARILY HARD-CODED)
+            rep = rep + ' KQkq';
+
+            % En passant square? (we haven't started so defualt to -)
+            rep = rep + ' -';
+
+            % Halfmove clock?
+            rep = rep + ' 0';
+
+            % Fullmove number?
+            rep = rep + ' 1';
         end
 
 
@@ -558,7 +616,7 @@ classdef ChessBoard < handle
             player = obj.get(pos).Player;
             
             % Get position's opponent
-            opponent = circ(player + 1, 1, 2);
+            oplayer = circ(player + 1, 1, 2);
 
             % Get all valid moves for piece
             moves = [ obj.vmoves(pos), obj.evmoves(pos) ];
@@ -569,7 +627,7 @@ classdef ChessBoard < handle
                 move = moves{i};
                 
                 % Check if that move puts opponent in check
-                if obj.isresmove(pos, move, opponent)
+                if obj.isresmove(pos, move, oplayer)
                     moves(i) = [];
                 end
             end
@@ -1179,14 +1237,15 @@ classdef ChessBoard < handle
                 score = score + max(25 - 2 * sum(cellfun(@(p) length(p.Enigmas), exti(obj.equery(mplayer), 1))), 10);
             end
                 
-            % +3/m for each additional potential consume (after moving)
-            score = score + 3 * length(obj.cmoves(newPos));
+            % +3/m for each additional potential consume (after moving),
+            % clamped to 5
+            score = score + clamp(3 * length(obj.cmoves(newPos)), 0, 5);
 
-            % -15 (-3/r, -2/o) if piece can be consumed next turn (- for your rank? rank disparity? & for # of opponents taking u)
+            % -30 (-3/r, -2/o) if piece can be consumed next turn (- for your rank? rank disparity? & for # of opponents taking u)
             oppocmoves = obj.cpmoves(oplayer);
 
             if has(exti(oppocmoves, 2), newPos)
-                score = score - 15 - 3 * abs(mpiece.rank()) - 2 * length(avfilt(exti(oppocmoves, 2), newPos));
+                score = score - 30 - 3 * abs(mpiece.rank()) - 2 * length(avfilt(exti(oppocmoves, 2), newPos));
             end
 
             % -5 (-2/r) for any other pieces that can be consumed
