@@ -112,6 +112,7 @@ pturn = 0;
 pturnmoves = 1;
 eturn = 0;
 moverem = 1;
+isforfeit = 0;
 
 % Debug marker.
 debugFrom = [];
@@ -126,7 +127,7 @@ kbrel = [4,4];
 kfcurr = [0,0];
 
 % Chessboard, chessbot, PGN
-cb = ChessBoard();
+cb = ChessBoard(BoardPreset.CastleTest);
 bot = ChessBot(cb, 0.1);
 pgn = PGN(cb);
 pgn.apopu();
@@ -204,6 +205,14 @@ while 1
         dir = Direction.NA;
 
         switch key
+            case 'hyphen'
+                if ~isforfeit
+                    disp("Really forfeit? (press again if so)...");
+                    isforfeit = 1;
+                else
+                    cb.Checks = [2, 0];
+                    pgn.smt("White forfeit");
+                end
             case 'backspace'
                 debugframe = ~debugframe;
                 game_scene.sound(sfx_debug);

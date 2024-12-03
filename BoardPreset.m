@@ -4,6 +4,7 @@ classdef BoardPreset
         Chaos
         Duel
         CheckTest
+        CastleTest
     end
 
     methods (Static)
@@ -40,7 +41,7 @@ classdef BoardPreset
                         0, 0, 0, 0, 0, 0, 0, 0;
                         WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn;
                         WhiteRook, WhiteKnight, WhiteBishop, WhiteQueen, WhiteKing, WhiteBishop, WhiteKnight, WhiteRook };
-                
+
                 case BoardPreset.Chaos
                     preset = { BlackRook, BlackKnight, BlackBishop, BlackRook, BlackKing, BlackBishop, BlackKnight, BlackRook;
                         BlackQueen, BlackQueen, BlackQueen, BlackQueen, BlackQueen, BlackQueen, BlackQueen, BlackQueen;
@@ -66,7 +67,7 @@ classdef BoardPreset
                     % kings' castles.
                     bk_emu = BlackKing.cpy();
                     wk_emu = WhiteKing.cpy();
-                    
+
                     bk_emu.FlagPure = 0;
                     wk_emu.FlagPure = 0;
 
@@ -78,6 +79,16 @@ classdef BoardPreset
                         0, 0, 0, 0, 0, 0, 0, 0
                         0, 0, 0, 0, 0, 0, 0, 0;
                         0, 0, 0, 0, 0, 0, 0, 0; };
+
+                case BoardPreset.CastleTest
+                    preset = { BlackRook, 0, 0, 0, BlackKing, 0, 0, BlackRook;
+                        BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn, BlackPawn;
+                        0, 0, 0, 0, 0, 0, 0, 0;
+                        0, 0, 0, 0, 0, 0, 0, 0;
+                        0, 0, 0, 0, 0, 0, 0, 0;
+                        0, 0, 0, 0, 0, 0, 0, 0;
+                        WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn;
+                        WhiteRook, 0, 0, 0, WhiteKing, 0, 0, WhiteRook };
             end
         end
 

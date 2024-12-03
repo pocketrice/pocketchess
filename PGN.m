@@ -193,7 +193,6 @@ classdef PGN < handle
                 mpiece = obj.Board.get(newpos);
                 mplayer = mpiece.Player;
                 oplayer = circ(mplayer + 1, 1, 2);
-                mtype = mpiece.Type;
                 chst = obj.Board.Checks;
 
                 % Notations for old/new positions, moved piece
@@ -203,7 +202,7 @@ classdef PGN < handle
 
                 % Begin figuring out notation...
                 % ====== CASTLE ======
-                if mtype == PieceType.King && ~has(mpiece.Enigmas, EnigmaType.Panick) && psame(abs(newpos - oldpos), [0,2])
+                if iscastle(oldpos, newpos, mpiece);
                     % Determine which side via seeing closer to which #.
                     % You can safely assume no ambiguity (e.g. no middle,
                     % hopefully).

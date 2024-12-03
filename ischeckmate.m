@@ -6,7 +6,7 @@
 
             % Not in checkmate if not in check!
             if board.Checks(player)                % Get all valid moves for the player
-                vmoves = board.vpmoves(player);
+                vmoves = board.vpmoves(player, 0);
 
                 % Filter for only moves that resolve check
                 for i = length(vmoves):-1:1

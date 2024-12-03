@@ -1204,11 +1204,13 @@ classdef ChessBoard < handle
         function score = mscore(obj, oldPos, newPos, enigspace)
             score = 0;
             
-            board = obj.cpy();
+            
+            mpiece = board.get(oldPos);
+            mpcpy = mpiece.fcpy();
 
-            mpiece = board.get(oldPos);           
             mplayer = mpiece.Player;
             oplayer = circ(mplayer+1, 1, 2);
+            mtype = mpiece.Type;
             mcap = board.pmove(oldPos, newPos);
             
             % +999 for checkmates opponent, +20 for checks opponent
@@ -1263,9 +1265,11 @@ classdef ChessBoard < handle
              score = score + 10 * length(avfilt(exti(board.cpmoves(mplayer), 2), newPos));
             
              fprintf("[%i, %i] ➡ [%i, %i] = %ipts\n", oldPos, newPos, score);
-             
-             % Clear board memory
-             clear board;
+
+             % Restore board
+             board.prem(newPos);
+             board.pow(oldPos, mpcpy);
+             board.pow(newPos, mcap);
         end
 
         % "PGN + pmove"
