@@ -957,7 +957,7 @@ classdef ChessBoard < handle
                             moves_diag = moves_diag(cellfun(@(m) valrel(pos, m, player), moves_diag));
 
                             if isforcedp
-                                bfr.aa(moves_diag);
+                                bfr.aa(cellfun(@(m) rel2abs(pos, m, player), moves_diag, "UniformOutput", false));
                             else
 
                                 for i = 1:length(moves_diag)
@@ -1483,11 +1483,9 @@ classdef ChessBoard < handle
         % and "ischeckmate" due to high # of calls to checkcheck which is
         % inherently slow.
         function checkcheck(obj)
-            chst = obj.Checks;
-
             for player = 1:2
-                checkmate = (chst(player) == 2);
-                check = (chst(player) >= 1);
+                checkmate = 0;
+                check = 0;
                 kq = obj.kquery();
                 %cq = obj.cpmoves(player);
 
