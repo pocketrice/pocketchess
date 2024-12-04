@@ -29,7 +29,7 @@ for r = 1:8
                 ptype = piece.Type;
                 
                 if ptype ~= PieceType.King
-                    allmoves = [ board.vmoves(pos), board.evmoves(pos) ];
+                    allmoves = [ board.vmoves(pos, -1), board.evmoves(pos) ];
                 else
                     abuffer = Buffer(9);
                     

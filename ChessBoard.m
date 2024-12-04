@@ -895,13 +895,20 @@ classdef ChessBoard < handle
         % skip (this is primarily regarding speeding up the AI; imperative
         % player moves should be left at prio 1).
         %
+        % -1 -> Skips castling/en passant (same as 2), INCLUDES diagonal moves for
+        % pawns.
         % 1 -> Calculates all (castling and en passant).
         % 2 -> Skips castling and en passant. Default.
         % 3 -> Skips pawns, castling, and en passant.
 
         function moves = vmoves(obj, pos, prio)
+            isforcedp = false;
+
             % Set prio if not passed.
             if nargin < 3
+                prio = 2;
+            elseif prio == -1
+                isforcedp = true;
                 prio = 2;
             end
 
@@ -949,35 +956,40 @@ classdef ChessBoard < handle
                             % always check diagonals for en passant now.
                             moves_diag = moves_diag(cellfun(@(m) valrel(pos, m, player), moves_diag));
 
-                            for i = 1:length(moves_diag)
-                                relmove = moves_diag{i};
-                                
-                                if prio < 2
-                                    % Absolute conversion
-                                    absmove = rel2abs(pos, relmove, player);
+                            if isforcedp
+                                bfr.aa(moves_diag);
+                            else
+
+                                for i = 1:length(moves_diag)
+                                    relmove = moves_diag{i};
+
+                                    if prio < 2
+                                        % Absolute conversion
+                                        absmove = rel2abs(pos, relmove, player);
 
 
-                                    % En passant row for your piece
-                                    enp_row = 3 + player;
+                                        % En passant row for your piece
+                                        enp_row = 3 + player;
 
-                                    % En passant's other piece.
-                                    enp_oppo = obj.get(rel2abs(pos, [0, relmove(2)], player));
+                                        % En passant's other piece.
+                                        enp_oppo = obj.get(rel2abs(pos, [0, relmove(2)], player));
 
-                                    % Verbose/one-liner for compactness. Checks if
-                                    % move itself is valid, then if either opponent
-                                    % or [EN PASSANT CONDITIONS] add.
+                                        % Verbose/one-liner for compactness. Checks if
+                                        % move itself is valid, then if either opponent
+                                        % or [EN PASSANT CONDITIONS] add.
 
-                                    % Note that ensuring enp_row guarantees
-                                    % enp_oppo is valid (skipping a valrel) but we
-                                    % do still need to check emptiness hence var
-                                    % separation.
+                                        % Note that ensuring enp_row guarantees
+                                        % enp_oppo is valid (skipping a valrel) but we
+                                        % do still need to check emptiness hence var
+                                        % separation.
 
-                                    % o/ hiya--! you actually don't need to check if
-                                    % there is a piece to capture or not... since a
-                                    % 2-hop requires empty space!
+                                        % o/ hiya--! you actually don't need to check if
+                                        % there is a piece to capture or not... since a
+                                        % 2-hop requires empty space!
 
-                                    if valabs(absmove) && (obj.isoppo(absmove, player) || (prio == 1 && pos(1) == enp_row && ~iseabs(enp_oppo) && enp_oppo.Type == PieceType.Pawn && enp_oppo.FlagTemp))
-                                        bfr.a(absmove);
+                                        if valabs(absmove) && (obj.isoppo(absmove, player) || (prio == 1 && pos(1) == enp_row && ~iseabs(enp_oppo) && enp_oppo.Type == PieceType.Pawn && enp_oppo.FlagTemp))
+                                            bfr.a(absmove);
+                                        end
                                     end
                                 end
                             end
@@ -1233,11 +1245,12 @@ classdef ChessBoard < handle
             end
                 
             % +3/m for each additional potential consume (after moving),
-            % clamped to 5
+            % clamped to 5. *Deliberately skips rmoves filter to save
+            % performance.
             score = score + clamp(3 * length(board.cmoves(newPos)), 0, 5);
 
             % -30 (-3/r, -2/o) if piece can be consumed next turn (- for your rank? rank disparity? & for # of opponents taking u)
-            oppocmoves = board.cpmoves(oplayer);
+            oppocmoves = board.frpmoves(board.cpmoves(oplayer), oplayer);
 
             if has(exti(oppocmoves, 2), newPos)
                 score = score - 30 - 3 * abs(mpiece.rank()) - 2 * length(avfilt(exti(oppocmoves, 2), newPos));
@@ -1250,10 +1263,10 @@ classdef ChessBoard < handle
                 score = score - 5 - 2 * abs(conpiece.rank());
             end
 
-
              % +10/p for each piece protecting this piece (due to this
              % obscure use-case, it doesn't warrant another +50 lines to
              % this abhorrently long file...!)
+
 
              % This uses a clever trick due to being the last operation on
              % this "temp board"; by swapping player of moved piece you can
