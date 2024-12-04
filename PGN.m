@@ -202,7 +202,7 @@ classdef PGN < handle
 
                 % Begin figuring out notation...
                 % ====== CASTLE ======
-                if iscastle(oldpos, newpos, mpiece);
+                if iscastle(oldpos, newpos, mpiece)
                     % Determine which side via seeing closer to which #.
                     % You can safely assume no ambiguity (e.g. no middle,
                     % hopefully).
@@ -229,6 +229,12 @@ classdef PGN < handle
 
                     % Add end space
                     move = move + an_new;
+
+                     % If pawn promotion, add "=@" (@ is placeholder)
+                    % Uses some clever maths to one-line promo row.
+                    if mpiece.Type == PieceType.Pawn && newpos(1) == clamp((mplayer - 1) * 8, 1, 8)
+                        move = move + '=@';
+                    end
 
                     % Add check marker (if)
                     switch chst(oplayer)
@@ -265,8 +271,18 @@ classdef PGN < handle
         % "Update promo"
         % This should be called immediately after actually promoting a
         % piece to update the movetext buffer placeholder.
-        % function updpromo(obj, type)
-        % end
+        %
+        % Thus you may assume (a) buffer not empty, (b) the # placeholder exists and (c) it is
+        % the last item in the buffer.
+        function updpromo(obj, type)
+            psan = sanMapper(ChessPiece(type, 1));
+            mtpool = obj.MoveText.pool();
+
+            mtitem = mtpool{end};
+            mtitem(1) = replace(mtitem{1}, '@', psan);
+
+            obj.MoveText.Pool{length(mtpool)} = mtitem;
+        end
 
         % "Compile"
         % Compiles to a valid PGN string. Assumes moves are properly formatted

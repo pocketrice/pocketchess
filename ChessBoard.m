@@ -1223,11 +1223,11 @@ classdef ChessBoard < handle
             oplayer = circ(mplayer+1, 1, 2);
             mcap = board.pmove(oldPos, newPos);
             
-            % +999 for checkmates opponent, +20 for checks opponent
+            % +999 for checkmates opponent, +15 for checks opponent
             if board.Checks(mplayer) == 2
                 score = score + 999;
             elseif board.Checks(mplayer) == 1
-                score = score + 20;
+                score = score + 15;
             end
 
             % +50 for castling
@@ -1235,10 +1235,10 @@ classdef ChessBoard < handle
                 score = score + 50;
             end
             
-            % +20 (+5/r) for consumes piece (+ for captured's rank), +5/e for
+            % +15 (+5/r) for consumes piece (+ for captured's rank), +5/e for
             % each of consumed's enigma
             if ~iseabs(mcap)
-                score = score + 20 + 5 * abs(mcap.rank()) + 5 * length(mpiece.Enigmas);
+                score = score + 15 + 5 * abs(mcap.rank()) + 5 * length(mpiece.Enigmas);
             % +25 (-2/e) for gets enigma (- for total enigmas, minimum 10)
             elseif psame(newPos, enigspace)
                 score = score + max(25 - 2 * sum(cellfun(@(p) length(p.Enigmas), exti(board.equery(mplayer), 1))), 10);
@@ -1249,18 +1249,18 @@ classdef ChessBoard < handle
             % performance.
             score = score + clamp(3 * length(board.cmoves(newPos)), 0, 5);
 
-            % -30 (-3/r, -2/o) if piece can be consumed next turn (- for your rank? rank disparity? & for # of opponents taking u)
+            % -40 (-3/r, -2/o) if piece can be consumed next turn (- for your rank? rank disparity? & for # of opponents taking u)
             oppocmoves = board.frpmoves(board.cpmoves(oplayer), oplayer);
 
             if has(exti(oppocmoves, 2), newPos)
-                score = score - 30 - 3 * abs(mpiece.rank()) - 2 * length(avfilt(exti(oppocmoves, 2), newPos));
+                score = score - 40 - 3 * abs(mpiece.rank()) - 2 * length(avfilt(exti(oppocmoves, 2), newPos));
             end
 
-            % -5 (-2/r) for any other pieces that can be consumed
+            % -8 (-2/r) for any other pieces that can be consumed
             % currently (to encourage AI to protect pieces)
             for conpcell = puniq(exti(oppocmoves, 2))
                 conpiece = board.get(conpcell);
-                score = score - 5 - 2 * abs(conpiece.rank());
+                score = score - 8 - 2 * abs(conpiece.rank());
             end
 
              % +10/p for each piece protecting this piece (due to this
