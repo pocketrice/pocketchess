@@ -667,7 +667,7 @@ classdef ChessBoard < handle
             if ~iseabs(piece)
                 player = piece.Player;
                 
-                allmoves = [ obj.vmoves(pos), obj.evmoves(pos) ];
+                allmoves = [ obj.vmoves(pos, -1), obj.evmoves(pos) ];
 
                 for i = 1:length(allmoves)
                     move = unwrap(allmoves{i});
