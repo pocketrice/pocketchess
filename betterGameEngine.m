@@ -95,7 +95,7 @@ classdef betterGameEngine < handle
                     play(obj.sfxs{ind});
                 end
             catch ME
-                fprintf("SFX %i error; skipping.\n%s", ind, ME);
+                fprintf("SFX %i error; skipping.\n", ind);
             end
         end
             

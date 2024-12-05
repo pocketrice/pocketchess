@@ -5,6 +5,7 @@ classdef BoardPreset
         Duel
         CheckTest
         CastleTest
+        PromoTest
     end
 
     methods (Static)
@@ -89,6 +90,21 @@ classdef BoardPreset
                         0, 0, 0, 0, 0, 0, 0, 0;
                         WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn, WhitePawn;
                         WhiteRook, 0, 0, 0, WhiteKing, 0, 0, WhiteRook };
+
+                case BoardPreset.PromoTest
+                    % Since this emulates end-game state, unflag both
+                    % kings' castles.
+                    bk_emu = BlackKing.cpy();
+                    bk_emu.FlagPure = 0;
+
+                    preset = { 0, 0, 0, 0, bk_emu, 0, 0, 0;
+                        WhitePawn, 0, 0, 0, 0, 0, 0, 0;
+                        0, 0, 0, 0, 0, 0, 0, 0;
+                        0, 0, 0, 0, 0, 0, 0, WhiteKnight;
+                        WhiteRook, 0, 0, 0, 0, 0, 0, 0;
+                        0, 0, 0, 0, 0, WhiteBishop, 0, 0;
+                        0, 0, WhitePawn, 0, WhitePawn, WhitePawn, 0, WhitePawn;
+                        0, 0, 0, 0, WhiteKing, 0, 0, WhiteRook };
             end
         end
 

@@ -35,22 +35,7 @@ classdef ChessPiece < handle
         % "Get rank"
         % Gets the relative rank of this piece including +/- for player.
         function r = rank(obj)
-            r = 0;
-
-            switch obj.Type
-                case PieceType.Pawn
-                    r = 1;
-                case PieceType.Knight
-                    r = 2;
-                case PieceType.Bishop
-                    r = 3;
-                case PieceType.Rook
-                    r = 4;
-                case PieceType.Queen
-                    r = 5;
-                case PieceType.King
-                    r = 6;
-            end
+            r = obj.Type.Rank;
 
             % Flip polarity if black
             if obj.Player == 2

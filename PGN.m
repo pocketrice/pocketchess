@@ -221,6 +221,12 @@ classdef PGN < handle
                 else
                     % Add SAN mapping and (explicit) start file
                     move = move + msan + chat(an_old, 1);
+                    
+                    % If pawn promotion, add "=@" (@ is placeholder)
+                    % Uses some clever maths to one-line promo row.
+                    if mpiece.Type == PieceType.Pawn && newpos(1) == clamp((mplayer - 1) * 8, 1, 8)
+                        move = move + '=@';
+                    end
 
                     % Add capture marker (if)
                     if ~iseabs(cap)
@@ -229,12 +235,6 @@ classdef PGN < handle
 
                     % Add end space
                     move = move + an_new;
-
-                     % If pawn promotion, add "=@" (@ is placeholder)
-                    % Uses some clever maths to one-line promo row.
-                    if mpiece.Type == PieceType.Pawn && newpos(1) == clamp((mplayer - 1) * 8, 1, 8)
-                        move = move + '=@';
-                    end
 
                     % Add check marker (if)
                     switch chst(oplayer)

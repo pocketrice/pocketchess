@@ -10,7 +10,7 @@ global BlackBishop BlackPawn BlackKnight;
 
 
 % Instantiate game scene.
-game_scene = betterGameEngine('retro_chess.png', 16, 16, 4, [67, 55, 65], true);
+game_scene = betterGameEngine('retro_chess.png', 16, 16, 4, [67, 55, 65], false);
 
 % Cache sound effects.
 sfx_move = game_scene.cachesound("audio/scrolle.wav");
@@ -127,7 +127,7 @@ kbrel = [4,4];
 kfcurr = [0,0];
 
 % Chessboard, chessbot, PGN
-cb = ChessBoard(BoardPreset.CastleTest);
+cb = ChessBoard(BoardPreset.PromoTest);
 bot = ChessBot(cb, 0.1);
 pgn = PGN(cb);
 pgn.apopu();
